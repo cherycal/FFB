@@ -139,8 +139,6 @@ def get_positional_team_rankings():
 
 
 def get_rosters(LEAGUE_ID):
-    # url = "https://fantasy.espn.com/apis/v3/games/ffl/seasons/2021/segments/0/leagues/484773671?view=mPositionalRatings&view=mRoster&view=mSettings&view=mTeam&view=modular&view=mNavs"
-    # url = "https://fantasy.espn.com/apis/v3/games/ffl/seasons/2021/segments/0/leagues/484773671?scoringPeriodId=14&view=kona_player_info"
     url = f"https://fantasy.espn.com/apis/v3/games/ffl/seasons/{SEASON}/segments/0/" \
           f"leagues/{LEAGUE_ID}?view=mRoster&view=mSettings&view=mTeam&view=modular&view=mNavs"
     rosters = request_instance.make_request(url=url)
@@ -270,7 +268,6 @@ def write_rosters(data):
             for player in players:
                 player_id = player['playerPoolEntry']['id']
                 # print(player['lineupSlotId'])
-                # print("\n")
                 lineup_slot = lineup_slot_map()[str(player['lineupSlotId'])]
                 # print([league, team_name, team_id, team_abbrev, player_id])
                 csv_writer.writerow([data['league_name'], team_name, team_id, team_abbrev,
@@ -293,13 +290,6 @@ def write_rosters(data):
     except Exception as ex:
         print(f"Exception in df.to_sql: {ex}")
         data['db'].reset()
-
-    # new_rosters = roster_dict(data['db'])
-
-    # print(list(roster_diffs))
-    # items = roster_diffs
-    # print(f"{roster_diffs.get('dictionary_item_added')}\n"
-    #       f"{roster_diffs.get('dictionary_item_removed')}'\n\n")
 
     return 0
 
@@ -369,7 +359,6 @@ def write_player_stats(data, year=SEASON):
         data['db'].delete(delcmd)
         df.to_sql(table_name, data['db'].conn, if_exists='append', index=False)
 
-    #print("Wrote player stats")
     logger.info("Wrote player stats")
 
     return 0
@@ -574,13 +563,9 @@ def sleep_countdown(sleep_interval):
 
 
 def leagues_thread():
-    sleep_interval = 10
+    sleep_interval = 120
     fdb = sqldb.DB('Football.db')
     data = get_leaguewide_data(fdb)
-    # write_team_schedules(data)
-    # write_positional_team_rankings(data)
-    # write_player_info(data)
-    # write_player_stats(data, year=STATS_YEAR)
     leagues = get_leagues(data)
     while True:
         [process_league(data['db'], league) for league in leagues]
@@ -609,10 +594,10 @@ def scoreboard_thread():
 def main():
     #read_slack_thread = threading.Thread(target=slack_thread)
     process_league_thread = threading.Thread(target=leagues_thread)
-    #scores_thread = threading.Thread(target=scoreboard_thread)
+    scores_thread = threading.Thread(target=scoreboard_thread)
     #read_slack_thread.start()
     process_league_thread.start()
-    #scores_thread.start()
+    scores_thread.start()
 
 
 if __name__ == "__main__":
