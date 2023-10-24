@@ -184,9 +184,12 @@ def get_league_data(fdb, league_id, league_name):
     # data = {'player_stats': get_player_stats(league_id, year=STATS_YEAR),
     #         'rosters': get_rosters(league_id), 'league_id': league_id, 'league_name': league_name, 'year': SEASON}
     data = dict()
-    data['year'] = SEASON
     data['db'] = fdb
-    data['rosters'] = get_rosters(league_id),
+    data['year'] = SEASON
+    data['team_schedules'] = get_team_schedules()
+    data['player_stats'] = get_player_stats(STATS_YEAR)
+    data['positional_team_rankings'] = get_positional_team_rankings()
+    data['rosters'] = get_rosters(league_id)
     data['league_id'] = league_id
     data['league_name'] = league_name
     return data
@@ -200,7 +203,6 @@ def roster_dict(fdb):
         value = dict(map(lambda i, j: (i, j), list(row.keys()), list(row.values())))
         _roster_dict[key] = value
     return _roster_dict
-
 
 def process_transactions(transactions):
     msg = ""
@@ -252,7 +254,7 @@ def write_rosters(data):
     update_time = datetime.datetime.now().strftime("%Y%m%d.%H%M%S")
     file_name = './data/roster_data_file.csv'
     table_name = "Rosters"
-    original_rosters = roster_dict(data['db'])
+    # original_rosters = roster_dict(data['db'])
     with open(file_name, 'w', newline='', encoding='utf-8') as csv_file:
         # creating a csv writer object
         csv_writer = csv.writer(csv_file)
@@ -292,7 +294,16 @@ def write_rosters(data):
         print(f"Exception in df.to_sql: {ex}")
         data['db'].reset()
 
-    new_rosters = roster_dict(data['db'])
+    # new_rosters = roster_dict(data['db'])
+
+    # print(list(roster_diffs))
+    # items = roster_diffs
+    # print(f"{roster_diffs.get('dictionary_item_added')}\n"
+    #       f"{roster_diffs.get('dictionary_item_removed')}'\n\n")
+
+    return 0
+
+def diff_rosters(original_rosters, new_rosters):
     roster_diffs = list(diff(original_rosters, new_rosters))
     transactions = list()
     for item in roster_diffs:
@@ -303,13 +314,6 @@ def write_rosters(data):
             detail_list.append(details)
         transactions.append({'type': difftype, 'details': detail_list})
     process_transactions(transactions)
-    # print(list(roster_diffs))
-    # items = roster_diffs
-    # print(f"{roster_diffs.get('dictionary_item_added')}\n"
-    #       f"{roster_diffs.get('dictionary_item_removed')}'\n\n")
-
-    return 0
-
 
 def write_player_info(data):
     file_name = './data/player_data_file.csv'
@@ -529,22 +533,33 @@ def write_league_availability(data, availability, league_name):
 
 
 def process_league(fdb, league):
+    #### Save original data for comparison
+    original_rosters = roster_dict(fdb)
+
+    #### Get data from web
     league_id = league['leagueID']
     league_name = league['leagueAbbr']
     print(f"Get league data for {league_name}:")
-    # league_data = get_league_data(fdb, league_id, league_name)
-    ######################
-    league_data = dict()
-    league_data['year'] = SEASON
-    league_data['db'] = fdb
+    league_data = get_league_data(fdb, league_id, league_name)
+
+    #### Write data to DB
+    write_team_schedules(league_data)
+    write_positional_team_rankings(league_data)
+    write_player_info(league_data)
+    write_player_stats(league_data, year=STATS_YEAR)
+
     league_data['rosters'] = get_rosters(league_id),
-    league_data['league_id'] = league_id
-    league_data['league_name'] = league_name
     write_rosters(league_data)
-    ######################
+
+    #### Compare new data to saved data & push differences to Slack
+    new_rosters = roster_dict(fdb)
+    diff_rosters(original_rosters, new_rosters)
+
+    #####
     availability = get_league_player_availability(f"{league_id}", 6)
     write_league_availability(league_data, availability, league_name)
-    ######################
+
+    #####
     logger.info(f"League {league_name} processed\n")
     time.sleep(4)
 
@@ -559,13 +574,13 @@ def sleep_countdown(sleep_interval):
 
 
 def leagues_thread():
-    sleep_interval = 300
+    sleep_interval = 10
     fdb = sqldb.DB('Football.db')
     data = get_leaguewide_data(fdb)
-    write_team_schedules(data)
-    write_positional_team_rankings(data)
-    write_player_info(data)
-    write_player_stats(data, year=STATS_YEAR)
+    # write_team_schedules(data)
+    # write_positional_team_rankings(data)
+    # write_player_info(data)
+    # write_player_stats(data, year=STATS_YEAR)
     leagues = get_leagues(data)
     while True:
         [process_league(data['db'], league) for league in leagues]
@@ -594,10 +609,10 @@ def scoreboard_thread():
 def main():
     #read_slack_thread = threading.Thread(target=slack_thread)
     process_league_thread = threading.Thread(target=leagues_thread)
-    scores_thread = threading.Thread(target=scoreboard_thread)
+    #scores_thread = threading.Thread(target=scoreboard_thread)
     #read_slack_thread.start()
     process_league_thread.start()
-    scores_thread.start()
+    #scores_thread.start()
 
 
 if __name__ == "__main__":
