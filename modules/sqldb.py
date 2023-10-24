@@ -1,6 +1,7 @@
 __author__ = 'chance'
 
 # import sys
+import os
 import inspect
 import sqlite3
 import time
@@ -29,11 +30,13 @@ class DB:
     def __init__(self, db):
         platform = tools.get_platform()
         if platform == "Windows":
-            self.db = 'C:\\Ubuntu\\Shared\\data\\' + db
+            db_dir = os.environ["DB_DIR_WIN"]
+            self.db = f'{db_dir}{db}'
         elif platform == "linux" or platform == 'Linux':
-            self.db = '/media/sf_Shared/data/' + db
+            db_dir = os.environ["DB_DIR_LINUX"]
+            self.db = f'{db_dir}{db}'
         else:
-            print("Platform " + platform + " not recognized in sqldb::DB. Exiting.")
+            print(f"Platform {platform} not recognized in sqldb::DB. Exiting.")
             exit(-1)
         self.conn = sqlite3.connect(self.db)
         print("Opening " + self.db)
@@ -111,7 +114,7 @@ class DB:
         for _ in in_list[0]:
             question_mark_string += "?,"
         question_mark_string = question_mark_string[: -1] + ")"
-        command = "INSERT INTO " + table + " VALUES " + question_mark_string
+        command = f"INSERT INTO {table} VALUES {question_mark_string}"
         # print(command)
         # print(in_list)
         try:
@@ -128,7 +131,7 @@ class DB:
         # print(in_list)
 
         try:
-            cursor = self.conn.execute('select * from ' + table)
+            cursor = self.conn.execute(f'select * from {table}')
             out_list = list(map(lambda x: x[0], cursor.description))
             cols = self.string_from_list(out_list)
             # print(cols)
