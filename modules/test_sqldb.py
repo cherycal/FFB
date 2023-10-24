@@ -5,7 +5,9 @@ import sqldb, tools
 import os.path
 from os import path
 
-bdb = sqldb.DB('Baseball.db')
+fdb = sqldb.DB('Football.db')
+
+print(fdb.query("Select * from ESPNRosters"))
 
 # rows = bdb.query(cmd="select M.*, P.InjuryStatus as OldInjuryStatus from MostRecentPlayerData M, PlayerData P "
 #                    "where M.Date = P.Date and M.ESPNID = P.ESPNID")
