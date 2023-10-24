@@ -340,7 +340,7 @@ def write_player_info(data):
 
 
 def write_player_stats(data, year=SEASON):
-    file_name = 'C:\\Ubuntu\\Shared\\data\\FFB\\player_stats_file.csv'
+    file_name = "C:\\Ubuntu\\Shared\\data\\FFB\\player_stats_file.csv"
     table_name = "PlayerStats"
     leagueId = 0
     # is_header = True
