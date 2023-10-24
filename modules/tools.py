@@ -35,7 +35,7 @@ import push
 push_instance = push.Push(calling_function="Tools")
 
 
-def get_logger(logfilename='C:\\Ubuntu\\Shared\\logs\\FFB\\pushlog.log',
+def get_logger(logfilename='./logs/pushlog.log',
                logformat='%(asctime)s:%(levelname)s'
                          ':%(funcName)s:%(lineno)d:%(message)s:%(pathname)s\n'):
     bold_seq = '\033[1m'
@@ -48,7 +48,7 @@ def get_logger(logfilename='C:\\Ubuntu\\Shared\\logs\\FFB\\pushlog.log',
 
     logger_instance = logging.getLogger(__name__)
     logger_instance.setLevel(logging.DEBUG)
-    logfilename = 'C:\\Ubuntu\\Shared\\logs\\FFB\\pushlog.log'
+    logfilename = './logs/pushlog.log'
     formatter = logging.Formatter(logformat)
     file_handler = logging.FileHandler(logfilename)
     file_handler.setFormatter(formatter)
@@ -194,7 +194,7 @@ class Process(object):
         self.cursor = self.conn.cursor()
         self.name = "process_instance"
         if logger_instance is None:
-            logname = 'C:\\Ubuntu\\Shared\\FFB\\logs\\pushlog.log'
+            logname = './logs/pushlog.log'
             self.logger_instance = get_logger(logfilename=logname)
         else:
             self.logger_instance = logger_instance

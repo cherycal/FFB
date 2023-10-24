@@ -53,7 +53,7 @@ def ordinal(n):
         return str(n) + {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, "th")
 
 
-def get_logger(logfilename='C:\\Ubuntu\\Shared\\logs\\FFB\\pushlog.log',
+def get_logger(logfilename='./logs/pushlog.log',
                logformat='%(asctime)s:%(levelname)s:%(funcName)s:%(lineno)d:%(message)s:%(pathname)s\n'):
     bold_seq = '\033[1m'
     colorlog_format = (
@@ -62,7 +62,7 @@ def get_logger(logfilename='C:\\Ubuntu\\Shared\\logs\\FFB\\pushlog.log',
         f'{logformat}'
     )
     colorlog.basicConfig(format=colorlog_format)
-    logfilename = 'C:\\Ubuntu\\Shared\\logs\\FFB\\pushlog.log'
+    logfilename = './logs/pushlog.log'
     logger_instance = logging.getLogger(__name__)
     logger_instance.setLevel(logging.DEBUG)
 
@@ -126,7 +126,7 @@ class Process(object):
         self.cursor = self.conn.cursor()
         self.name = "process_instance"
         if logger_instance is None:
-            logname = 'C:\\Ubuntu\\Shared\\FFB\\logs\\pushlog.log'
+            logname = './logs/pushlog.log'
             self.logger_instance = get_logger(logfilename=logname)
         else:
             self.logger_instance = logger_instance

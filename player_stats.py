@@ -73,7 +73,7 @@ def get_player_stats(year=SEASON):
     request_instance.set_limit(LIMIT)
     url = f"https://fantasy.espn.com/apis/v3/games/ffl/seasons/{year}/segments/0/leaguedefaults/3?view=kona_player_info"
     player_data = request_instance.make_request(url=url,
-                                                output_file=f"C:\\Ubuntu\\Shared\\data\\FFB\\ESPNPlayerStats.json",
+                                                output_file=f"./data/ESPNPlayerStats.json",
                                                 write=True)
     players = player_data['players']
     for player in players:
@@ -250,7 +250,7 @@ def process_transactions(transactions):
 
 def write_rosters(data):
     update_time = datetime.datetime.now().strftime("%Y%m%d.%H%M%S")
-    file_name = 'C:\\Ubuntu\\Shared\\data\\FFB\\roster_data_file.csv'
+    file_name = './data/roster_data_file.csv'
     table_name = "Rosters"
     original_rosters = roster_dict(data['db'])
     with open(file_name, 'w', newline='', encoding='utf-8') as csv_file:
@@ -312,7 +312,7 @@ def write_rosters(data):
 
 
 def write_player_info(data):
-    file_name = 'C:\\Ubuntu\\Shared\\data\\FFB\\player_data_file.csv'
+    file_name = './data/player_data_file.csv'
     table_name = "PlayerInfo"
 
     is_header = True
@@ -340,7 +340,7 @@ def write_player_info(data):
 
 
 def write_player_stats(data, year=SEASON):
-    file_name = "C:\\Ubuntu\\Shared\\data\\FFB\\player_stats_file.csv"
+    file_name = "./data/player_stats_file.csv"
     table_name = "PlayerStats"
     leagueId = 0
     # is_header = True
@@ -372,7 +372,7 @@ def write_player_stats(data, year=SEASON):
 
 
 def write_team_schedules(data):
-    file_name = 'C:\\Ubuntu\\Shared\\data\\FFB\\team_file.csv'
+    file_name = './data/team_file.csv'
     table_name = "TeamSchedules"
     with open(file_name, 'w', newline='', encoding='utf-8') as csv_file:
         # creating a csv writer object
@@ -451,7 +451,7 @@ def write_positional_team_rankings(data):
 
     print_it = True
     if print_it:
-        file_name = 'C:\\Ubuntu\\Shared\\data\\FFB\\ranking_file.csv'
+        file_name = './data/ranking_file.csv'
         table_name = "TeamRankings"
         with open(file_name, 'w', newline='', encoding='utf-8') as csv_file:
             csv_writer = csv.writer(csv_file)
@@ -475,7 +475,7 @@ def write_positional_team_rankings(data):
             print(f"Exception in refresh {table_name}: {ex}")
             data['db'].reset()
 
-        file_name = 'C:\\Ubuntu\\Shared\\data\\FFB\\weekly_file.csv'
+        file_name = './data/weekly_file.csv'
         table_name = "TeamWeeklyStats"
         with open(file_name, 'w', newline='', encoding='utf-8') as csv_file:
             csv_writer = csv.writer(csv_file)
@@ -504,7 +504,7 @@ def write_positional_team_rankings(data):
 
 
 def write_league_availability(data, availability, league_name):
-    file_name = 'C:\\Ubuntu\\Shared\\data\\FFB\\availability_file.csv'
+    file_name = './data/availability_file.csv'
     table_name = "LeagueAvailability"
     with open(file_name, 'w', newline='', encoding='utf-8') as csv_file:
         # creating a csv writer object

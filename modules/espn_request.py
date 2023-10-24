@@ -16,7 +16,7 @@ DEFAULT_URL = f"{ESPN_BASE}{str(DEFAULT_YEAR)}/segments/0/leaguedefaults/3?view=
 # https://fantasy.espn.com/apis/v3/games/ffl/seasons/2021/segments/0/leaguedefaults/1?view=kona_player_info
 # https://fantasy.espn.com/apis/v3/games/ffl/seasons/2021/segments/0/leagues/1221578721?&view=kona_player_info
 
-DEFAULT_OUTPUT_FILE = "C:\\Ubuntu\\Shared\\data\\FFB\\ESPNdata.json"
+DEFAULT_OUTPUT_FILE = "./data/ESPNdata.json"
 
 # Selenium
 # driver = tools.get_driver("headless")
