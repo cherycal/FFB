@@ -17,7 +17,6 @@ import dataframe_image as dfi
 
 
 class Scoreboard:
-
     def __init__(self):
         self.SEASON = 2023
         self.STATS_YEAR = 2023
