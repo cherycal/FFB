@@ -1,10 +1,7 @@
 __author__ = 'chance'
 
-import sys
-# from bs4 import BeautifulSoup as bs
+
 import push
-import tools
-import time
 import json
 import requests
 
@@ -111,7 +108,7 @@ class Request(object):
         if write:
             with open(output_file, 'w') as outfile:
                 json.dump(resp, outfile)
-            print("Printed result to " + output_file)
+                inst.logger_instance.info("Printed result to " + output_file)
 
         if print_flag:
             print(f"Resp: {resp}")

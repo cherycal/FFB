@@ -520,7 +520,7 @@ class Stats:
         #### Get data from web
         league_id = league['leagueID']
         league_name = league['leagueAbbr']
-        print(f"Get league data for {league_name}:")
+        self.logger.info(f"Get league data for {league_name}:")
         league_data = self.get_league_data(league_id, league_name)
 
         #### Write data to DB
@@ -603,15 +603,7 @@ class Stats:
 
 def main():
     stats = Stats()
-    # old_rosters = stats.roster_dict()
-    # print(old_rosters)
-    # print("sleep")
-    # time.sleep(15)
-    # print("end sleep")
-    # new_rosters = stats.roster_dict()
-    # print(new_rosters)
-    # stats.diff_rosters(new_rosters,old_rosters)
-    stats.start(threaded=False, sleep_interval=120)
+    stats.start()
 
 
 if __name__ == "__main__":
