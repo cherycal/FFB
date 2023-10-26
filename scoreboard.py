@@ -151,6 +151,10 @@ class Scoreboard:
                 away_team = matchup['away']['teamId']
                 home_team_name = self.fantasy_teams[league][str(home_team)]
                 away_team_name = self.fantasy_teams[league][str(away_team)]
+                if home_team_name in ['MO', 'ZONE', 'RULE']:
+                    home_team_name += "**"
+                if away_team_name in ['MO', 'ZONE', 'RULE']:
+                    away_team_name += "**"
                 if home_team == data['my_team_id'] or away_team == data['my_team_id']:
                     home_score = matchup['home']['totalPointsLive']
                     away_score = matchup['away']['totalPointsLive']
@@ -159,8 +163,8 @@ class Scoreboard:
                     update_time = datetime.datetime.now().strftime("%#I:%M")
                     AMPM_flag = datetime.datetime.now().strftime('%p')
                     msg = f"{update_time} {AMPM_flag}\r\nLeague: {league}\n\t" \
-                          f"--{home_team_name:>5}\t{home_score:>6.2f}\t( proj: {home_projected_score:>7.3f} )\n\t" \
-                          f"--{away_team_name:>5}\t{away_score:>6.2f}\t( proj: {away_projected_score:>7.3f} )\n\n"
+                          f"-- {home_team_name:<7}{home_score:>6.2f}\t( proj: {home_projected_score:>7.3f} )\n\t" \
+                          f"-- {away_team_name:<7}{away_score:>6.2f}\t( proj: {away_projected_score:>7.3f} )\n\n"
                     print(msg)
                     if msg != "":
                         self.push_instance.push(title="Score update", body=f'{msg}', channel="scoreboard")
