@@ -16,24 +16,6 @@ from dictdiffer import diff
 from scoreboard import Scoreboard
 
 
-def lineup_slot_map():
-    position_names = {
-        '0': 'QB',
-        '1': 'QB',
-        '2': 'RB',
-        '3': 'WR',
-        '4': 'WR',
-        '5': 'WR',
-        '16': 'D',
-        '17': 'K',
-        '20': 'B',
-        '21': 'IR',
-        '23': 'FLEX',
-        '6': 'TE'
-    }
-    return position_names
-
-
 class Stats:
 
     def __init__(self):
@@ -48,7 +30,25 @@ class Stats:
         self.logname = './logs/statslog.log'
         self.logger = push.get_logger(logfilename=self.logname)
         self.DB = sqldb.DB('Football.db')
-        self.lineup_slot_map = lineup_slot_map()
+        self.lineup_slot_map = self.lineup_slot_map()
+        self.threaded = True
+
+    def lineup_slot_map(self):
+        position_names = {
+            '0': 'QB',
+            '1': 'QB',
+            '2': 'RB',
+            '3': 'WR',
+            '4': 'WR',
+            '5': 'WR',
+            '16': 'D',
+            '17': 'K',
+            '20': 'B',
+            '21': 'IR',
+            '23': 'FLEX',
+            '6': 'TE'
+        }
+        return position_names
 
     def get_leagues(self):
         return self.DB.query(f"select leagueId, leagueAbbr, Year from Leagues where Year = {self.SEASON}")
@@ -191,11 +191,13 @@ class Stats:
 
     def roster_dict(self):
         _roster_dict = dict()
-        roster_query = f"select name, injuryStatus, lineup_slot, league, team_abbrev from PlayerRosters"
-        for row in self.DB.query(roster_query):
-            key = str(list(row.values()))
-            value = dict(map(lambda i, j: (i, j), list(row.keys()), list(row.values())))
-            _roster_dict[key] = value
+        roster_query = (f"select id||'_'||injuryStatus||'_'||lineup_slot||'_'||league||'_'||team_abbrev as key, "
+                        f"name, id, injuryStatus, lineup_slot, league, team_abbrev from PlayerRosters "
+                        f"where key is not NULL")
+        rows = self.DB.query(roster_query)
+        for row in rows:
+            key = str(row['key'])
+            _roster_dict[key] = row
         return _roster_dict
 
     def process_transactions(self, transactions):
@@ -226,8 +228,8 @@ class Stats:
             new_injury_status = summary[key].get('new_injury_status', "None")
             old_lineup_slot = summary[key].get('old_lineup_slot', "None")
             new_lineup_slot = summary[key].get('new_lineup_slot', "None")
-            if not team_abbrev and not league:
-                break
+            # if not team_abbrev and not league:
+            #     break
             update_time = datetime.datetime.now().strftime("%#I:%M")
             AMPM_flag = datetime.datetime.now().strftime('%p')
             msg += f"{update_time} {AMPM_flag}\n{name} ( team: {team_abbrev} - league: {league} ) "
@@ -287,9 +289,10 @@ class Stats:
 
         return 0
 
-    def diff_rosters(self, original_rosters, new_rosters):
+    def diff_rosters(self, new_rosters, original_rosters):
         roster_diffs = list(diff(original_rosters, new_rosters))
         transactions = list()
+        print(f"Diffs: {roster_diffs}")
         for item in roster_diffs:
             difftype = item[0]
             detail_list = list()
@@ -512,7 +515,7 @@ class Stats:
 
     def process_league(self, league):
         #### Save original data for comparison
-        original_rosters = self.roster_dict()
+        # original_rosters = self.roster_dict()
 
         #### Get data from web
         league_id = league['leagueID']
@@ -530,8 +533,8 @@ class Stats:
         self.write_rosters(league_data)
 
         #### Compare new data to saved data & push differences to Slack
-        new_rosters = self.roster_dict()
-        self.diff_rosters(original_rosters, new_rosters)
+        # new_rosters = self.roster_dict()
+        # self.diff_rosters(new_rosters, original_rosters)
 
         #####
         availability = self.get_league_player_availability(f"{league_id}", 6)
@@ -539,64 +542,76 @@ class Stats:
 
         #####
         self.logger.info(f"League {league_name} processed\n")
-        time.sleep(4)
+        time.sleep(2)
 
+    def sleep_countdown(self, sleep_interval):
+        print(f"League process sleep countdown: ", end='')
+        while sleep_interval > 0:
+            if sleep_interval % 10 == 0:
+                print(f"{sleep_interval} ", end='')
+            time.sleep(1)
+            sleep_interval -= 1
 
-def sleep_countdown(sleep_interval):
-    print(f"League process sleep countdown: ", end='')
-    while sleep_interval > 0:
-        if sleep_interval % 10 == 0:
-            print(f"{sleep_interval} ", end='')
-        time.sleep(1)
-        sleep_interval -= 1
+    def run_leagues(self, threaded=True, sleep_interval=120):
+        self.DB = sqldb.DB('Football.db')
+        leagues = self.get_leagues()
+        print(f"run_leagues threaded indicator is set to {threaded}")
+        while True:
+            old_rosters = self.roster_dict()
+            [self.process_league(league) for league in leagues]
+            new_rosters = self.roster_dict()
+            self.diff_rosters(new_rosters, old_rosters)
+            if threaded:
+                countdown = threading.Thread(target=self.sleep_countdown, args=(sleep_interval,))
+                countdown.start()
+            print(f"Sleep for {sleep_interval} seconds")
+            time.sleep(sleep_interval)
 
+    def process_slack_text(self, slack_text):
+        print(slack_text)
+        pass
 
-def run_leagues(threaded=True):
-    stats_instance = Stats()
-    sleep_interval = 120
-    leagues = stats_instance.get_leagues()
-    while True:
-        [stats_instance.process_league(league) for league in leagues]
-        if threaded:
-            countdown = threading.Thread(target=sleep_countdown, args=(sleep_interval,))
-            countdown.start()
-        time.sleep(sleep_interval)
+    def slack_thread(self):
+        slack_instance = push.Push()
+        while True:
+            update_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+            slack_text = slack_instance.read_slack()
+            if slack_text != "":
+                push.logger.info(f"Slack text ({update_time}):{slack_text}.")
+                slack_instance.push(f"Received slack request: {slack_text}")
+                self.process_slack_text(slack_text)
+            time.sleep(5)
 
+    def scoreboard_thread(self):
+        scores = Scoreboard()
+        scores.start()
 
-def process_slack_text(slack_text):
-    print(slack_text)
-    pass
-
-
-def slack_thread():
-    slack_instance = push.Push()
-    while True:
-        update_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-        slack_text = slack_instance.read_slack()
-        if slack_text != "":
-            push.logger.info(f"Slack text ({update_time}):{slack_text}.")
-            slack_instance.push(f"Received slack request: {slack_text}")
-            process_slack_text(slack_text)
-        time.sleep(5)
-
-
-def scoreboard_thread():
-    scores = Scoreboard()
-    scores.start()
+    def start(self, threaded=True, sleep_interval=60):
+        self.threaded = threaded
+        if self.threaded is True:
+            # read_slack_thread = threading.Thread(target=slack_thread)
+            # read_slack_thread.start()
+            process_league_thread = threading.Thread(target=self.run_leagues)
+            scores_thread = threading.Thread(target=self.scoreboard_thread)
+            process_league_thread.start()
+            scores_thread.start()
+            time.sleep(sleep_interval)
+        else:
+            # scoreboard_thread()
+            self.run_leagues(threaded=False, sleep_interval=sleep_interval)
 
 
 def main():
-    # read_slack_thread = threading.Thread(target=slack_thread)
-    # read_slack_thread.start()
-    threaded = True
-    if threaded is True:
-        process_league_thread = threading.Thread(target=run_leagues)
-        scores_thread = threading.Thread(target=scoreboard_thread)
-        process_league_thread.start()
-        scores_thread.start()
-    else:
-        #scoreboard_thread()
-        run_leagues(threaded=False)
+    stats = Stats()
+    # old_rosters = stats.roster_dict()
+    # print(old_rosters)
+    # print("sleep")
+    # time.sleep(15)
+    # print("end sleep")
+    # new_rosters = stats.roster_dict()
+    # print(new_rosters)
+    # stats.diff_rosters(new_rosters,old_rosters)
+    stats.start(threaded=False, sleep_interval=120)
 
 
 if __name__ == "__main__":
