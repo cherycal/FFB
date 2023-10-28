@@ -101,12 +101,18 @@ class Scoreboard:
         slack_instance = push.Push(calling_function="FBScores")
         while True:
             update_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-            slack_text = slack_instance.read_slack()
-            if slack_text != "":
-                self.logger.info(f"Slack text ({update_time}):{slack_text}.")
-                slack_instance.push(f"Received slack request: {slack_text}")
-                self.process_slack_text(slack_text)
-            time.sleep(5)
+            try:
+                slack_text = slack_instance.read_slack()
+                if slack_text != "":
+                    self.logger.info(f"Slack text ({update_time}):{slack_text}.")
+                    slack_instance.push(f"Received slack request: {slack_text}")
+                    self.process_slack_text(slack_text)
+                time.sleep(5)
+            except Exception as ex:
+                print(f"Exception in read_slack: {ex}")
+                self.logger.info(f"Exception in read_slack: {ex}")
+                self.push_instance.push(f"Exception in read_slack: {ex}")
+
 
     def get_leagues(self):
         return self.fdb.query(f"select leagueId, leagueAbbr, Year, my_team_id from Leagues where Year = {self.SEASON}")
