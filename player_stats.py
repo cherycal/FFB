@@ -16,6 +16,49 @@ from dictdiffer import diff
 from scoreboard import Scoreboard
 
 
+def lineup_slot_map(slot_id):
+    position_names = {
+        '0': 'QB',
+        '1': 'QB',
+        '2': 'RB',
+        '3': 'WR',
+        '4': 'WR',
+        '5': 'WR',
+        '16': 'D',
+        '17': 'K',
+        '20': 'B',
+        '21': 'IR',
+        '23': 'FLEX',
+        '6': 'TE'
+    }
+    return position_names.get(slot_id)
+
+def sleep_countdown(sleep_interval):
+    print(f"League process sleep countdown: ", end='')
+    while sleep_interval > 0:
+        if sleep_interval % 10 == 0:
+            print(f"{sleep_interval} ", end='')
+        time.sleep(1)
+        sleep_interval -= 1
+def scoreboard_thread():
+    scores = Scoreboard()
+    scores.start()
+
+def process_slack_text(slack_text):
+    print(slack_text)
+    pass
+
+def slack_thread():
+    slack_instance = push.Push()
+    while True:
+        update_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+        slack_text = slack_instance.read_slack()
+        if slack_text != "":
+            push.logger.info(f"Slack text ({update_time}):{slack_text}.")
+            slack_instance.push(f"Received slack request: {slack_text}")
+            process_slack_text(slack_text)
+        time.sleep(5)
+
 class Stats:
 
     def __init__(self, season=2023):
@@ -28,7 +71,7 @@ class Stats:
         self.logname = './logs/statslog.log'
         self.logger = push.get_logger(logfilename=self.logname)
         self.DB = sqldb.DB('Football.db')
-        self.lineup_slot_map = self.lineup_slot_map()
+        #self.lineup_slot_map = self.lineup_slot_map()
         self.threaded = True
 
     def __repr__(self):
@@ -50,22 +93,6 @@ class Stats:
         self.logger.info(f"Set SEASON to {value}")
         self._SEASON = value
 
-    def lineup_slot_map(self):
-        position_names = {
-            '0': 'QB',
-            '1': 'QB',
-            '2': 'RB',
-            '3': 'WR',
-            '4': 'WR',
-            '5': 'WR',
-            '16': 'D',
-            '17': 'K',
-            '20': 'B',
-            '21': 'IR',
-            '23': 'FLEX',
-            '6': 'TE'
-        }
-        return position_names
 
     def get_leagues(self):
         return self.DB.query(f"select leagueId, leagueAbbr, Year from Leagues where Year = {self.SEASON}")
@@ -280,7 +307,7 @@ class Stats:
                 for player in players:
                     player_id = player['playerPoolEntry']['id']
                     # print(player['lineupSlotId'])
-                    lineup_slot = self.lineup_slot_map[str(player['lineupSlotId'])]
+                    lineup_slot = lineup_slot_map(str(player['lineupSlotId']))
                     # print([league, team_name, team_id, team_abbrev, player_id])
                     csv_writer.writerow([data['league_name'], team_name, team_id, team_abbrev,
                                          player_id, lineup_slot, self.SEASON, update_time])
@@ -561,13 +588,6 @@ class Stats:
         self.logger.info(f"League {league_name} processed\n")
         time.sleep(2)
 
-    def sleep_countdown(self, sleep_interval):
-        print(f"League process sleep countdown: ", end='')
-        while sleep_interval > 0:
-            if sleep_interval % 10 == 0:
-                print(f"{sleep_interval} ", end='')
-            time.sleep(1)
-            sleep_interval -= 1
 
     def run_leagues(self, threaded=True, sleep_interval=120):
         self.DB = sqldb.DB('Football.db')
@@ -579,29 +599,10 @@ class Stats:
             new_rosters = self.roster_dict().copy()
             self.diff_rosters(new_rosters, old_rosters)
             if threaded:
-                countdown = threading.Thread(target=self.sleep_countdown, args=(sleep_interval,))
+                countdown = threading.Thread(target=sleep_countdown, args=(sleep_interval,))
                 countdown.start()
             print(f"Sleep for {sleep_interval} seconds")
             time.sleep(sleep_interval)
-
-    def process_slack_text(self, slack_text):
-        print(slack_text)
-        pass
-
-    def slack_thread(self):
-        slack_instance = push.Push()
-        while True:
-            update_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-            slack_text = slack_instance.read_slack()
-            if slack_text != "":
-                push.logger.info(f"Slack text ({update_time}):{slack_text}.")
-                slack_instance.push(f"Received slack request: {slack_text}")
-                self.process_slack_text(slack_text)
-            time.sleep(5)
-
-    def scoreboard_thread(self):
-        scores = Scoreboard()
-        scores.start()
 
     def start(self, threaded=True, sleep_interval=60):
         self.threaded = threaded
@@ -609,7 +610,7 @@ class Stats:
             # read_slack_thread = threading.Thread(target=slack_thread)
             # read_slack_thread.start()
             process_league_thread = threading.Thread(target=self.run_leagues)
-            scores_thread = threading.Thread(target=self.scoreboard_thread)
+            scores_thread = threading.Thread(target=scoreboard_thread)
             process_league_thread.start()
             scores_thread.start()
             time.sleep(sleep_interval)
