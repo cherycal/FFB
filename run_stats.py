@@ -8,7 +8,9 @@ from player_stats import Stats
 
 
 def main():
-	Stats().start(threaded=True, sleep_interval=240)
+	stats = Stats()
+	print(stats)
+	#stats().start(threaded=True, sleep_interval=240)
 
 
 if __name__ == "__main__":

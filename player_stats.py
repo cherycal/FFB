@@ -18,13 +18,11 @@ from scoreboard import Scoreboard
 
 class Stats:
 
-    def __init__(self):
-        self.SEASON = 2023
-        self.STATS_YEAR = 2023
+    def __init__(self, season=2023):
+        self._SEASON = season
         self.DEFAULT_LEAGUE_ID = "2103345024"
         self.request_instance = espn_request.Request()
-        self.request_instance.year = self.SEASON
-        print(self.request_instance.year)
+        self.request_instance.year = self._SEASON
         self.REFRESH = True
         self.push_instance = push.Push(calling_function="FBInfo")
         self.logname = './logs/statslog.log'
@@ -32,6 +30,25 @@ class Stats:
         self.DB = sqldb.DB('Football.db')
         self.lineup_slot_map = self.lineup_slot_map()
         self.threaded = True
+
+    def __repr__(self):
+        return f"Stats object: Season: {self.SEASON}\n"
+
+    def __str__(self):
+        return f"Stats object: Season: {self.SEASON}, DB:{self.DB}\n"
+
+    @property
+    def SEASON(self):
+        return self._SEASON
+
+    @SEASON.getter
+    def SEASON(self):
+        return self._SEASON
+
+    @SEASON.setter
+    def SEASON(self, value: bool):
+        self.logger.info(f"Set SEASON to {value}")
+        self._SEASON = value
 
     def lineup_slot_map(self):
         position_names = {
@@ -176,8 +193,6 @@ class Stats:
         return data
 
     def get_league_data(self, league_id, league_name):
-        # data = {'player_stats': get_player_stats(league_id, year=STATS_YEAR),
-        #         'rosters': get_rosters(league_id), 'league_id': league_id, 'league_name': league_name, 'year': SEASON}
         data = dict()
         data['db'] = self.DB
         data['year'] = self.SEASON
@@ -328,8 +343,10 @@ class Stats:
 
         return 0
 
-    def write_player_stats(self, data):
-        year = self.SEASON
+    def write_player_stats(self, data=None):
+        if data is None:
+            data = dict()
+            data['player_stats'] = self.get_player_stats()
         file_name = "./data/player_stats_file.csv"
         table_name = "PlayerStats"
         leagueId = 0
@@ -346,16 +363,16 @@ class Stats:
                     proj = stats['proj'].get(week, "")
                     act = stats['act'].get(week, "")
                     # print([player_id, name, week, proj, act, leagueId, data['year']])
-                    csv_writer.writerow([player_id, name, week, proj, act, leagueId, year])
+                    csv_writer.writerow([player_id, name, week, proj, act, leagueId, self.SEASON])
         df = pd.read_csv(file_name)
         # print(df)
 
         if df.size > 0:
-            delcmd = f"delete from {table_name} where Year = {year}"
-            data['db'].delete(delcmd)
-            df.to_sql(table_name, data['db'].conn, if_exists='append', index=False)
+            delcmd = f"delete from {table_name} where Year = {self.SEASON}"
+            self.DB.delete(delcmd)
+            df.to_sql(table_name, self.DB.conn, if_exists='append', index=False)
 
-        self.logger.info("Wrote player stats")
+        self.logger.info(f"Wrote table {table_name}")
 
         return 0
 
@@ -557,9 +574,9 @@ class Stats:
         leagues = self.get_leagues()
         print(f"run_leagues threaded indicator is set to {threaded}")
         while True:
-            old_rosters = self.roster_dict()
+            old_rosters = self.roster_dict().copy()
             [self.process_league(league) for league in leagues]
-            new_rosters = self.roster_dict()
+            new_rosters = self.roster_dict().copy()
             self.diff_rosters(new_rosters, old_rosters)
             if threaded:
                 countdown = threading.Thread(target=self.sleep_countdown, args=(sleep_interval,))
@@ -603,7 +620,7 @@ class Stats:
 
 def main():
     stats = Stats()
-    stats.start()
+    stats.start(threaded=False)
 
 
 if __name__ == "__main__":
