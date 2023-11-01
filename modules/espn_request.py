@@ -103,14 +103,19 @@ class Request(object):
         # filters = {"players": {"limit": 500, "sortDraftRanks": {"sortPriority": 100, "sortAsc": True, "value": "STANDARD"}}}
         # headers = {'x-fantasy-filter': json.dumps(filters)}
 
-        resp = requests.get(url, headers=headers).json()
+        resp = None
+        try:
+            resp = requests.get(url, headers=headers).json()
 
-        if write:
-            with open(output_file, 'w') as outfile:
-                json.dump(resp, outfile)
-                inst.logger_instance.info("Printed result to " + output_file)
+            if write:
+                with open(output_file, 'w') as outfile:
+                    json.dump(resp, outfile)
+                    inst.logger_instance.info("Printed result to " + output_file)
 
-        if print_flag:
-            print(f"Resp: {resp}")
+            if print_flag:
+                print(f"Resp: {resp}")
+
+        except Exception as ex:
+            inst.logger_instance.info(f"Error in make_request(): {ex}")
 
         return resp
