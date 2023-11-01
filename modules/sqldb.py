@@ -1,18 +1,14 @@
 __author__ = 'chance'
 
-# import sys
 import os
 import inspect
 import sqlite3
 import time
-# import traceback
+import pandas as pd
 
 import push
 import tools
 
-import pandas as pd
-
-# import logging
 def print_calling_function(command='command left blank'):
     print(command)
     print(str(inspect.stack()))
@@ -24,6 +20,13 @@ def print_calling_function(command='command left blank'):
     #       ", " + str(inspect.stack()[-1].lineno))
     return
 
+def print_stack():
+    stack = list()
+    inspect_stack = inspect.stack().copy()
+    for item in inspect_stack:
+        if item.function != 'execfile':
+            stack.insert(0,f"{item.filename}:{item.lineno}:{item.function}")
+    return stack
 
 class DB:
 
@@ -39,10 +42,17 @@ class DB:
             print(f"Platform {platform} not recognized in sqldb::DB. Exiting.")
             exit(-1)
         self.conn = sqlite3.connect(self.db)
-        print("Opening " + self.db)
+        self.stack = inspect.stack()
+        print(f"Opening database: {self.db}\n\tCall stack:{print_stack()}\n")
         self.cursor = self.conn.cursor()
         self.msg = ""
         self.push_instance = push.Push(calling_function="SQLDB")
+
+    def __repr__(self):
+        return f"{self.db}"
+
+    def __str__(self):
+        return f"{self.db}"
 
     def query(self, cmd, verbose=0):
         if verbose:
