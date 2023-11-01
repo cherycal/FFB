@@ -33,7 +33,7 @@ class Request(object):
             "players": {"limit": 1500, "sortDraftRanks": {"sortPriority": 100, "sortAsc": True, "value": "PPR"}}}
         self._headers = {'x-fantasy-filter': json.dumps(self._filters)}
         self._DEFAULT_OUTPUT_FILE = DEFAULT_OUTPUT_FILE
-        print("Initialized Request with default url: " + self._DEFAULT_URL)
+        inst.logger_instance.info(f"\nInitialized Request object with default url: {self._DEFAULT_URL}\n")
 
     @property
     def filters(self):
