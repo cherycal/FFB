@@ -272,6 +272,10 @@ class Stats:
             new_lineup_slot = summary[key].get('new_lineup_slot', "None")
             # if not team_abbrev and not league:
             #     break
+            if old_lineup_slot is None and new_lineup_slot is not None:
+                msg += "ADD:  "
+            if old_lineup_slot is not None and new_lineup_slot is None:
+                msg += "DROP: "
             update_time = datetime.datetime.now().strftime("%#I:%M")
             AMPM_flag = datetime.datetime.now().strftime('%p')
             msg += f"{update_time} {AMPM_flag}\n{name} ( team: {team_abbrev} - league: {league} ) "
