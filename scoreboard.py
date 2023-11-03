@@ -26,7 +26,7 @@ class Scoreboard:
         self.push_instance = push.Push(calling_function="FBScores")
         self.leagues = self.get_leagues()
         self.week = self.get_week(self.leagues[0]['leagueID'])
-        self._run_it = False
+        self._run_it = True
         self._main_loop_sleep = 160
         self.logname = './logs/statslog.log'
         self.logger = tools.get_logger(logfilename=self.logname)

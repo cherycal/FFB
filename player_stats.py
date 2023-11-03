@@ -233,7 +233,8 @@ class Stats:
 
     def roster_dict(self):
         _roster_dict = dict()
-        roster_query = (f"select id||'_'||injuryStatus||'_'||lineup_slot||'_'||league||'_'||team_abbrev as key, "
+        roster_query = (f"select id||'_'||coalesce(injuryStatus,'NA')||'_'||"
+                        f"lineup_slot||'_'||league||'_'||team_abbrev as key, "
                         f"name, id, injuryStatus, lineup_slot, league, team_abbrev from PlayerRosters "
                         f"where key is not NULL")
         rows = self.DB.query(roster_query)
@@ -272,9 +273,9 @@ class Stats:
             new_lineup_slot = summary[key].get('new_lineup_slot', "None")
             # if not team_abbrev and not league:
             #     break
-            if old_lineup_slot is None and new_lineup_slot is not None:
+            if old_lineup_slot == "None" and new_lineup_slot != "None":
                 msg += "ADD:  "
-            if old_lineup_slot is not None and new_lineup_slot is None:
+            if old_lineup_slot != "None" and new_lineup_slot == "None":
                 msg += "DROP: "
             update_time = datetime.datetime.now().strftime("%#I:%M")
             AMPM_flag = datetime.datetime.now().strftime('%p')
@@ -590,13 +591,14 @@ class Stats:
 
         #####
         self.logger.info(f"League {league_name} processed\n")
-        time.sleep(2)
+        time.sleep(.5)
 
 
     def run_leagues(self, threaded=True, sleep_interval=120):
         self.DB = sqldb.DB('Football.db')
         leagues = self.get_leagues()
         print(f"run_leagues threaded indicator is set to {threaded}")
+        print(f"run_leagues sleep interval is set to {sleep_interval}")
         while True:
             old_rosters = self.roster_dict().copy()
             [self.process_league(league) for league in leagues]
@@ -613,7 +615,7 @@ class Stats:
         if self.threaded is True:
             # read_slack_thread = threading.Thread(target=slack_thread)
             # read_slack_thread.start()
-            process_league_thread = threading.Thread(target=self.run_leagues)
+            process_league_thread = threading.Thread(target=self.run_leagues, kwargs={'sleep_interval': sleep_interval})
             scores_thread = threading.Thread(target=scoreboard_thread)
             process_league_thread.start()
             scores_thread.start()
