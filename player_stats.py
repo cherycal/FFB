@@ -284,7 +284,7 @@ class Stats:
                 msg += f"OldStatus: {old_injury_status} NewStatus: {new_injury_status} "
             if old_lineup_slot != new_lineup_slot:
                 msg += f"OldLineupSlot: {old_lineup_slot} NewLineupSlot: {new_lineup_slot}"
-            msg += "\n"
+            msg += "\n\n"
 
         if msg != "":
             print(msg)

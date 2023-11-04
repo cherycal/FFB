@@ -13,6 +13,7 @@ import pandas as pd
 
 fdb = sqldb.DB('Football.db')
 request_instance = espn_request.Request()
+update_time = datetime.datetime.now().strftime("%Y%m%d.%H%M%S")
 
 def game_odds(game):
 	file_name = './data/odds.csv'
@@ -20,7 +21,6 @@ def game_odds(game):
 	url = str(f"https://sports.core.api.espn.com/v2/sports/football/"
 	          f"leagues/nfl/events/{game}/competitions/{game}/odds")
 	odds = request_instance.make_request(url=url, output_file=f"./data/ESPNOdds.json", write=True)
-	update_time = datetime.datetime.now().strftime("%Y%m%d.%H%M%S")
 	with open(file_name, 'w', newline='', encoding='utf-8') as csv_file:
 		# creating a csv writer object
 		csv_writer = csv.writer(csv_file)
