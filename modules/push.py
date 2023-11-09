@@ -10,8 +10,8 @@ from datetime import datetime
 from email.mime.text import MIMEText
 
 import colorlog
-#import dataframe_image as dfi
-#import pandas as pd
+# import dataframe_image as dfi
+# import pandas as pd
 # import tweepy
 # from pushbullet import PushBullet
 from pyfcm import FCMNotification
@@ -63,7 +63,7 @@ def get_logger(logfilename='./logs/pushlog.log',
         f'{logformat}'
     )
     colorlog.basicConfig(format=colorlog_format)
-    logfilename = './logs/pushlog.log'
+    #logfilename = './logs/pushlog.log'
     logger_instance = logging.getLogger(__name__)
     logger_instance.setLevel(logging.DEBUG)
 
@@ -89,8 +89,13 @@ def print_calling_function():
     return
 
 
-
-
+def print_stack():
+    stack = list()
+    inspect_stack = inspect.stack().copy()
+    for item in inspect_stack:
+        if item.function != 'execfile':
+            stack.insert(0, f"{item.filename}:{item.lineno}:{item.function}")
+    return stack
 
 
 def push_attachment(attachment, channel="None", body="None"):
@@ -425,6 +430,7 @@ class Push(object):
         return self.str
 
     def read_slack(self):
+        # self.logger_instance.info(f"read_slack Call stack:{print_stack()}\n")
         last_msg_time_db = self.process_instance.get_slack_timestamp()
         history = self.slack_client.conversations_history(channel=self.slack_requests_channel,
                                                           tokem=self.slack_api_token, limit=5)
@@ -434,8 +440,9 @@ class Push(object):
             for msg in msgs:
                 ts = float(msg['ts'])
                 msg_age = ts - last_msg_time_db
-                # print(f"Msg time ({ts}) is {msg_age} seconds "
+                # print(f"Msg time ({ts}) for msg {msg['text']} is {msg_age} seconds "
                 #       f"older than last recorded message time ({last_msg_time_db})")
+                time.sleep(.25)
                 if msg_age > 0:
                     try:
                         text = msg['text']
@@ -450,5 +457,5 @@ class Push(object):
                     # print(f"Skipping most recent post: {text}"
         if return_text != "":
             self.push(title=f"Received slack text: {return_text}",
-                                    body=f"Received slack text: {return_text}")
+                      body=f"Received slack text: {return_text}")
         return return_text

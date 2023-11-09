@@ -27,7 +27,7 @@ class Scoreboard:
         self.leagues = self.get_leagues()
         self.week = self.get_week(self.leagues[0]['leagueID'])
         self._run_it = True
-        self._main_loop_sleep = 160
+        self._main_loop_sleep = 240
         self.logname = './logs/statslog.log'
         self.logger = tools.get_logger(logfilename=self.logname)
         self.leagues = self.get_leagues()
@@ -53,7 +53,7 @@ class Scoreboard:
 
     @main_loop_sleep.setter
     def main_loop_sleep(self, value: int):
-        self.main_loop_sleep = value
+        self._main_loop_sleep = value
 
     def run_query(self, query, msg="query", channel=None):
         if not channel:
@@ -92,27 +92,36 @@ class Scoreboard:
             self.run_query(cmd)
         if text.upper()[0:2] == "S:":
             if text[2:].isdigit():
-                main_loop_sleep = int(text.upper()[2:])
-                self.push_instance.push(f"Score loop sleep set to {self.main_loop_sleep}")
+                try:
+                    self.main_loop_sleep = int(text.upper()[2:])
+                    print(f"Score loop sleep set to {self.main_loop_sleep}")
+                except Exception as ex:
+                    print(f"Exception in self.main_loop_sleep: {ex}")
             else:
-                self.push_instance.push(f"Number not provided. Score loop sleep remains at {self.main_loop_sleep}")
+                print(f"Number not provided. Score loop sleep remains at {self.main_loop_sleep}")
 
     def slack_thread(self):
         slack_instance = push.Push(calling_function="FBScores")
         while True:
             update_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+            slack_text = ""
             try:
                 slack_text = slack_instance.read_slack()
-                if slack_text != "":
-                    self.logger.info(f"Slack text ({update_time}):{slack_text}.")
-                    slack_instance.push(f"Received slack request: {slack_text}")
-                    self.process_slack_text(slack_text)
-                time.sleep(5)
+                #self.logger.info(f"Slack text ({update_time}):{slack_text}.")
             except Exception as ex:
-                print(f"Exception in read_slack: {ex}")
+                print(f"Exception in slack_instance.read_slack: {ex}")
                 self.logger.info(f"Exception in read_slack: {ex}")
                 self.push_instance.push(f"Exception in read_slack: {ex}")
-
+            if slack_text != "":
+                self.logger.info(f"Slack text ({update_time}):{slack_text}.")
+                slack_instance.push(f"Received slack request: {slack_text}")
+                try:
+                    self.process_slack_text(slack_text)
+                except Exception as ex:
+                    print(f"Exception in process_slack_text: {ex}")
+                    self.logger.info(f"Exception in process_slack_text: {ex}")
+                    self.push_instance.push(f"Exception in process_slack_text: {ex}")
+            time.sleep(2)
 
     def get_leagues(self):
         return self.fdb.query(f"select leagueId, leagueAbbr, Year, my_team_id from Leagues where Year = {self.SEASON}")
@@ -123,7 +132,8 @@ class Scoreboard:
         return matchup_schedule
 
     def get_scoreboard(self, league_id):
-        url = f"https://fantasy.espn.com/apis/v3/games/ffl/seasons/{self.SEASON}/segments/0/leagues/{league_id}?view=mScoreboard"
+        url = (f"https://fantasy.espn.com/apis/v3/games/ffl/seasons/"
+               f"{self.SEASON}/segments/0/leagues/{league_id}?view=mScoreboard")
         scoreboard = self.request_instance.make_request(url=url)
         return scoreboard
 
