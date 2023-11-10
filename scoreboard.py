@@ -14,8 +14,6 @@ import espn_request
 import pandas as pd
 import dataframe_image as dfi
 
-
-
 class Scoreboard:
     def __init__(self):
         self.SEASON = 2023
@@ -27,7 +25,7 @@ class Scoreboard:
         self.leagues = self.get_leagues()
         self.week = self.get_week(self.leagues[0]['leagueID'])
         self._run_it = True
-        self._main_loop_sleep = 240
+        self._main_loop_sleep = 1200
         self.logname = './logs/statslog.log'
         self.logger = tools.get_logger(logfilename=self.logname)
         self.leagues = self.get_leagues()
@@ -94,7 +92,8 @@ class Scoreboard:
             if text[2:].isdigit():
                 try:
                     self.main_loop_sleep = int(text.upper()[2:])
-                    print(f"Score loop sleep set to {self.main_loop_sleep}")
+                    self.logger.info(f"Score loop sleep set to {self.main_loop_sleep}")
+                    self.push_instance.push(f"Score loop sleep set to {self.main_loop_sleep}")
                 except Exception as ex:
                     print(f"Exception in self.main_loop_sleep: {ex}")
             else:
@@ -178,9 +177,10 @@ class Scoreboard:
                     away_projected_score = round(matchup['away']['totalProjectedPointsLive'], 3)
                     update_time = datetime.datetime.now().strftime("%#I:%M")
                     AMPM_flag = datetime.datetime.now().strftime('%p')
-                    msg = f"{update_time} {AMPM_flag}\r\nLeague: {league}\n\t" \
-                          f"-- {home_team_name:<7}{home_score:>6.2f}\t( proj: {home_projected_score:>7.3f} )\n\t" \
-                          f"-- {away_team_name:<7}{away_score:>6.2f}\t( proj: {away_projected_score:>7.3f} )\n\n"
+                    msg = f"{update_time}{AMPM_flag}\tLeague: {league}\t\t\t\t\t\t\t\t\t\r\n" \
+                          f"{home_team_name:<6}\t\t{home_score:>6.2f}\t( proj: {home_projected_score:>7.3f} )" \
+                          f"\t\t\t\t\t\r\n" \
+                          f"{away_team_name:<6}\t\t{away_score:>6.2f}\t( proj: {away_projected_score:>7.3f} )\n\n"
                     print(msg)
                     if msg != "":
                         self.push_instance.push(title="Score update", body=f'{msg}', channel="scoreboard")

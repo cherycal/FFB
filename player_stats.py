@@ -274,16 +274,18 @@ class Stats:
             # if not team_abbrev and not league:
             #     break
             if old_lineup_slot == "None" and new_lineup_slot != "None":
-                msg += "ADD:  "
+                msg += "ADD: "
             if old_lineup_slot != "None" and new_lineup_slot == "None":
                 msg += "DROP: "
             if old_lineup_slot != "None" and new_lineup_slot != "None" and old_injury_status == new_injury_status:
                 msg += "LINEUP CHANGE: "
+            if old_injury_status != new_injury_status and old_injury_status != "None" and new_injury_status != "None":
+                msg += f"STATUS CHANGE: "
             update_time = datetime.datetime.now().strftime("%#I:%M")
             AMPM_flag = datetime.datetime.now().strftime('%p')
             msg += f"{update_time} {AMPM_flag}\n{name} ( team: {team_abbrev} - league: {league} ) "
             if old_injury_status != new_injury_status and old_injury_status != "None" and new_injury_status != "None":
-                msg += f"STATUS CHANGE: OldStatus: {old_injury_status} NewStatus: {new_injury_status} "
+                msg += f"OldStatus: {old_injury_status} NewStatus: {new_injury_status} "
             if old_lineup_slot != new_lineup_slot:
                 msg += f"OldLineupSlot: {old_lineup_slot} NewLineupSlot: {new_lineup_slot}"
             msg += "\n\n"
