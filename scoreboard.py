@@ -177,9 +177,9 @@ class Scoreboard:
                     away_projected_score = round(matchup['away']['totalProjectedPointsLive'], 3)
                     update_time = datetime.datetime.now().strftime("%#I:%M")
                     AMPM_flag = datetime.datetime.now().strftime('%p')
-                    msg = f"{update_time}{AMPM_flag}\tLeague: {league}\t\t\t\t\t\t\t\t\t\r\n" \
+                    msg = f"{update_time}{AMPM_flag}\tLeague: {league}\t\t\t\t\t\t\t\t\t\t\r\n\n" \
                           f"{home_team_name:<6}\t\t{home_score:>6.2f}\t( proj: {home_projected_score:>7.3f} )" \
-                          f"\t\t\t\t\t\r\n" \
+                          f"\t\t\t\t\t\r\n\n" \
                           f"{away_team_name:<6}\t\t{away_score:>6.2f}\t( proj: {away_projected_score:>7.3f} )\n\n"
                     print(msg)
                     if msg != "":

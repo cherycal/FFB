@@ -267,32 +267,40 @@ class Stats:
             name = summary[key]['name']
             league = summary[key]['league']
             team_abbrev = summary[key]['team_abbrev']
-            old_injury_status = summary[key].get('old_injury_status', "None")
-            new_injury_status = summary[key].get('new_injury_status', "None")
+            old_injury_status = summary[key].get('old_injury_status', "None")[0:1]
+            new_injury_status = summary[key].get('new_injury_status', "None")[0:1]
             old_lineup_slot = summary[key].get('old_lineup_slot', "None")
             new_lineup_slot = summary[key].get('new_lineup_slot', "None")
             # if not team_abbrev and not league:
             #     break
+            update_time = datetime.datetime.now().strftime("%#I:%M") + datetime.datetime.now().strftime('%p')
+            transtype = ""
             if old_lineup_slot == "None" and new_lineup_slot != "None":
-                msg += "ADD: "
+                transtype = "ADD: "
             if old_lineup_slot != "None" and new_lineup_slot == "None":
-                msg += "DROP: "
+                transtype = "DROP: "
             if old_lineup_slot != "None" and new_lineup_slot != "None" and old_injury_status == new_injury_status:
-                msg += "LINEUP CHANGE: "
+                transtype = "LINEUP: "
             if old_injury_status != new_injury_status and old_injury_status != "None" and new_injury_status != "None":
-                msg += f"STATUS CHANGE: "
-            update_time = datetime.datetime.now().strftime("%#I:%M")
-            AMPM_flag = datetime.datetime.now().strftime('%p')
-            msg += f"{update_time} {AMPM_flag}\n{name} ( team: {team_abbrev} - league: {league} ) "
+                transtype = f"STATUS: "
+            transtype += update_time
+            msg += f"{transtype:<61}\n"
+            self.push_instance.push(title="Roster change", body=f'{transtype}   {name}')
+            msg += f"{name:<74}\n"
+            tm_lg = f"tm:{team_abbrev} - lg:{league}"
+            msg += f"{tm_lg:<69}\n"
+            fm_to = ""
             if old_injury_status != new_injury_status and old_injury_status != "None" and new_injury_status != "None":
-                msg += f"OldStatus: {old_injury_status} NewStatus: {new_injury_status} "
+                fm_to = f"From: {old_injury_status} To: {new_injury_status}    Lineup: {new_lineup_slot}"
             if old_lineup_slot != new_lineup_slot:
-                msg += f"OldLineupSlot: {old_lineup_slot} NewLineupSlot: {new_lineup_slot}"
-            msg += "\n\n"
-
+                fm_to = f"From: {old_lineup_slot} To: {new_lineup_slot}"
+            msg += f"{tm_lg}    {fm_to}\n"
+            self.push_instance.push(title="Roster change", body=f'{tm_lg}    {fm_to}')
+            msg += f"{'-----------------':<66}\n"
+            self.push_instance.push(title="Roster change", body=f'{"-------------------------------"}')
         if msg != "":
             print(msg)
-            self.push_instance.push(title="Roster change", body=f'{msg}')
+            #self.push_instance.push(title="Roster change", body=f'{msg}')
 
         return
 
@@ -595,8 +603,6 @@ class Stats:
 
         #####
         self.logger.info(f"League {league_name} processed\n")
-        time.sleep(.5)
-
 
     def run_leagues(self, threaded=True, sleep_interval=120):
         self.DB = sqldb.DB('Football.db')

@@ -301,6 +301,7 @@ class Push(object):
                                                              message_title=title,
                                                              message_body=body, sound="whisper.mp3",
                                                              badge="Test2")
+        time.sleep(.25)
         return res
 
     def set_send_message_flag(self, flag_):
