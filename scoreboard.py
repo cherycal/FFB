@@ -26,6 +26,8 @@ class Scoreboard:
         self.week = self.get_week(self.leagues[0]['leagueID'])
         self._run_it = True
         self._main_loop_sleep = 1200
+        if datetime.datetime.now().weekday() == 6:
+            self._main_loop_sleep = 120
         self.logname = './logs/statslog.log'
         self.logger = tools.get_logger(logfilename=self.logname)
         self.leagues = self.get_leagues()
@@ -166,10 +168,13 @@ class Scoreboard:
                 away_team = matchup['away']['teamId']
                 home_team_name = self.fantasy_teams[league][str(home_team)]
                 away_team_name = self.fantasy_teams[league][str(away_team)]
+                my_loc = ""
                 if home_team_name in ['MO', 'ZONE', 'RULE']:
                     home_team_name += "**"
+                    my_loc = "home"
                 if away_team_name in ['MO', 'ZONE', 'RULE']:
                     away_team_name += "**"
+                    my_loc = "away"
                 if home_team == data['my_team_id'] or away_team == data['my_team_id']:
                     home_score = matchup['home']['totalPointsLive']
                     away_score = matchup['away']['totalPointsLive']
@@ -177,13 +182,35 @@ class Scoreboard:
                     away_projected_score = round(matchup['away']['totalProjectedPointsLive'], 3)
                     update_time = datetime.datetime.now().strftime("%#I:%M")
                     AMPM_flag = datetime.datetime.now().strftime('%p')
+                    home_lead = ""
+                    away_lead = ""
+                    if home_projected_score > away_projected_score:
+                        if my_loc == "home":
+                            home_lead = f"Winning by {round(home_projected_score - away_projected_score, 1)}"
+                        else:
+                            away_lead = f"Losing by {round(home_projected_score - away_projected_score, 1)}"
+                    else:
+                        if my_loc == "away":
+                            away_lead = f"Winning by {round(away_projected_score - home_projected_score, 1)}"
+                        else:
+                            home_lead = f"Losing by {round(away_projected_score - home_projected_score, 1)}"
                     msg = f"{update_time}{AMPM_flag}\tLeague: {league}\t\t\t\t\t\t\t\t\t\t\r\n\n" \
-                          f"{home_team_name:<6}\t\t{home_score:>6.2f}\t( proj: {home_projected_score:>7.3f} )" \
+                          f"{home_team_name:<6} {home_score:>6.2f} - ( proj: {home_projected_score:>7.3f} ) {home_lead}" \
                           f"\t\t\t\t\t\r\n\n" \
-                          f"{away_team_name:<6}\t\t{away_score:>6.2f}\t( proj: {away_projected_score:>7.3f} )\n\n"
+                          f"{away_team_name:<6} {away_score:>6.2f} = ( proj: {away_projected_score:>7.3f} ) {away_lead}"
                     print(msg)
                     if msg != "":
-                        self.push_instance.push(title="Score update", body=f'{msg}', channel="scoreboard")
+                        self.push_instance.push(title="Score update",
+                                                body=f"{home_team_name:<6} {home_score:>6.2f} "
+                                                     f"- ( proj: {home_projected_score:>7.3f} ) {home_lead}",
+                                                channel="scoreboard")
+                        self.push_instance.push(title="Score update",
+                                                body=f"{away_team_name:<6} {away_score:>6.2f} "
+                                                     f"- ( proj: {away_projected_score:>7.3f} ) {away_lead}",
+                                                channel="scoreboard")
+                        self.push_instance.push(title="Score update",
+                                                body=f"----------------------------",
+                                                channel="scoreboard")
 
     def process_data(self, data):
         schedule = data['matchup_schedule']['schedule']

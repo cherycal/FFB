@@ -359,7 +359,10 @@ class Stats:
                 details = subitem[1]
                 detail_list.append(details)
             transactions.append({'type': difftype, 'details': detail_list})
-        self.process_transactions(transactions)
+        if len(transactions) <= 40:
+            self.process_transactions(transactions)
+        else:
+            print(f"Transaction list is too long {len(transactions)}.")
 
     def write_player_info(self, data):
         file_name = './data/player_data_file.csv'
