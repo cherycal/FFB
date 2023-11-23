@@ -33,6 +33,7 @@ def lineup_slot_map(slot_id):
     }
     return position_names.get(slot_id)
 
+
 def sleep_countdown(sleep_interval):
     print(f"League process sleep countdown: ", end='')
     while sleep_interval > 0:
@@ -40,13 +41,17 @@ def sleep_countdown(sleep_interval):
             print(f"{sleep_interval} ", end='')
         time.sleep(1)
         sleep_interval -= 1
+
+
 def scoreboard_thread():
     scores = Scoreboard()
     scores.start()
 
+
 def process_slack_text(slack_text):
     print(slack_text)
     pass
+
 
 def slack_thread():
     slack_instance = push.Push()
@@ -58,6 +63,7 @@ def slack_thread():
             slack_instance.push(f"Received slack request: {slack_text}")
             process_slack_text(slack_text)
         time.sleep(5)
+
 
 class Stats:
 
@@ -71,14 +77,24 @@ class Stats:
         self.logname = './logs/statslog.log'
         self.logger = push.get_logger(logfilename=self.logname)
         self.DB = sqldb.DB('Football.db')
-        #self.lineup_slot_map = self.lineup_slot_map()
+        # self.lineup_slot_map = self.lineup_slot_map()
         self.threaded = True
+        self.gamedays = [0, 3, 6]
+        self._gameday = True if datetime.datetime.now().weekday() in self.gamedays else False
 
     def __repr__(self):
         return f"Stats object: Season: {self.SEASON}\n"
 
     def __str__(self):
         return f"Stats object: Season: {self.SEASON}, DB:{self.DB}\n"
+
+    @property
+    def gameday(self):
+        return self._gameday
+
+    @gameday.getter
+    def gameday(self):
+        return self._gameday
 
     @property
     def SEASON(self):
@@ -92,7 +108,6 @@ class Stats:
     def SEASON(self, value: bool):
         self.logger.info(f"Set SEASON to {value}")
         self._SEASON = value
-
 
     def get_leagues(self):
         return self.DB.query(f"select leagueId, leagueAbbr, Year from Leagues where Year = {self.SEASON}")
@@ -256,51 +271,70 @@ class Stats:
                 summary[key]['name'] = detail['name']
                 summary[key]['league'] = detail['league']
                 summary[key]['team_abbrev'] = detail['team_abbrev']
+                if transaction.get('type') is None:
+                    print(f"Transaction type not found")
                 if transaction['type'] == "add":
-                    summary[key]['new_injury_status'] = detail['injuryStatus']
-                    summary[key]['new_lineup_slot'] = detail['lineup_slot']
+                    summary[key]['new_injury_status'] = detail.get('injuryStatus', "----")
+                    summary[key]['new_lineup_slot'] = detail.get('lineup_slot', "----")
                 if transaction['type'] == "remove":
-                    summary[key]['old_injury_status'] = detail['injuryStatus']
-                    summary[key]['old_lineup_slot'] = detail['lineup_slot']
+                    summary[key]['old_injury_status'] = detail.get('injuryStatus', "----")
+                    summary[key]['old_lineup_slot'] = detail.get('lineup_slot', "----")
 
         for key in summary:
             name = summary[key]['name']
             league = summary[key]['league']
             team_abbrev = summary[key]['team_abbrev']
-            old_injury_status = summary[key].get('old_injury_status', "None")[0:1]
-            new_injury_status = summary[key].get('new_injury_status', "None")[0:1]
-            old_lineup_slot = summary[key].get('old_lineup_slot', "None")
-            new_lineup_slot = summary[key].get('new_lineup_slot', "None")
+            old_injury_status = "-"
+            new_injury_status = "="
+            old_lineup_slot = "-"
+            new_lineup_slot = "-"
+            try:
+                if summary[key].get('old_injury_status', "-"):
+                    old_injury_status = summary[key].get('old_injury_status', "-")[0:1]
+                if summary[key].get('new_injury_status', "-"):
+                    new_injury_status = summary[key].get('new_injury_status', "-")[0:1]
+                if summary[key].get('old_lineup_slot', "-"):
+                    old_lineup_slot = summary[key].get('old_lineup_slot', "-")
+                if summary[key].get('new_lineup_slot', "-"):
+                    new_lineup_slot = summary[key].get('new_lineup_slot', "-")
+            except Exception as ex:
+                # self.push_instance.push(title="Info", body=f'Exception: {ex}')
+                print(f"Exception in process_transactions: {ex}")
             # if not team_abbrev and not league:
             #     break
             update_time = datetime.datetime.now().strftime("%#I:%M") + datetime.datetime.now().strftime('%p')
             transtype = ""
-            if old_lineup_slot == "None" and new_lineup_slot != "None":
+            if old_lineup_slot == "-" and new_lineup_slot != "-":
                 transtype = "ADD: "
-            if old_lineup_slot != "None" and new_lineup_slot == "None":
+            if old_lineup_slot != "-" and new_lineup_slot == "-":
                 transtype = "DROP: "
-            if old_lineup_slot != "None" and new_lineup_slot != "None" and old_injury_status == new_injury_status:
+            if old_lineup_slot != "-" and new_lineup_slot != "-" and old_injury_status == new_injury_status:
                 transtype = "LINEUP: "
-            if old_injury_status != new_injury_status and old_injury_status != "None" and new_injury_status != "None":
+            if old_injury_status != new_injury_status and old_injury_status != "-" and new_injury_status != "-":
                 transtype = f"STATUS: "
             transtype += update_time
-            msg += f"{transtype:<61}\n"
+            msg += f"{transtype}\n"
+
             self.push_instance.push(title="Roster change", body=f'{transtype}   {name}')
-            msg += f"{name:<74}\n"
+
+            msg += f"{name:}\n"
             tm_lg = f"tm:{team_abbrev} - lg:{league}"
-            msg += f"{tm_lg:<69}\n"
             fm_to = ""
             if old_injury_status != new_injury_status and old_injury_status != "None" and new_injury_status != "None":
                 fm_to = f"From: {old_injury_status} To: {new_injury_status}    Lineup: {new_lineup_slot}"
             if old_lineup_slot != new_lineup_slot:
                 fm_to = f"From: {old_lineup_slot} To: {new_lineup_slot}"
             msg += f"{tm_lg}    {fm_to}\n"
+
             self.push_instance.push(title="Roster change", body=f'{tm_lg}    {fm_to}')
+
             msg += f"{'-----------------':<66}\n"
+
             self.push_instance.push(title="Roster change", body=f'{"-------------------------------"}')
+
         if msg != "":
             print(msg)
-            #self.push_instance.push(title="Roster change", body=f'{msg}')
+            # self.push_instance.push(title="Info", body=f'{msg}')
 
         return
 
@@ -337,6 +371,7 @@ class Stats:
         try:
             self.DB.delete(delcmd)
         except Exception as ex:
+            self.push_instance.push(title="Info", body=f'Exception in {delcmd}: {ex}')
             print(f"Exception in {delcmd}: {ex}")
             self.DB.reset()
 
@@ -359,10 +394,11 @@ class Stats:
                 details = subitem[1]
                 detail_list.append(details)
             transactions.append({'type': difftype, 'details': detail_list})
-        if len(transactions) <= 40:
+        if new_rosters and original_rosters and len(roster_diffs) < 25:
             self.process_transactions(transactions)
         else:
-            print(f"Transaction list is too long {len(transactions)}.")
+            # self.push_instance.push(title="Info", body=f'Exception: {ex}')
+            print(f"new_rosters len:{len(new_rosters)} or original_rosters len:{len(original_rosters)} is empty")
 
     def write_player_info(self, data):
         file_name = './data/player_data_file.csv'
@@ -456,6 +492,7 @@ class Stats:
             df.to_sql(table_name, self.DB.conn, if_exists='append', index=False)
             self.logger.info("Refreshed team_schedules")
         except Exception as ex:
+            # self.push_instance.push(title="Info", body=f'Exception: {ex}')
             print(f"Exception in refresh {table_name}: {ex}")
             self.DB.reset()
 
@@ -476,10 +513,15 @@ class Stats:
         team_names = dict()
         for team in pro_teams:
             team_names[str(team['id'])] = team['abbrev']
-        positional_rankings = data['positional_team_rankings']['positionAgainstOpponent']['positionalRatings']
+        positional_rankings = list()
+        if data['positional_team_rankings']['positionAgainstOpponent']['positionalRatings']:
+            positional_rankings = data['positional_team_rankings']['positionAgainstOpponent']['positionalRatings']
+        else:
+            # self.push_instance.push(title="Info", body=f'Exception: {ex}')
+            print(f"positional_rankings not found")
         for position in positional_rankings:
             position_name = position_names[position]
-            teams = positional_rankings[position]['ratingsByOpponent']
+            teams = positional_rankings[position].get('ratingsByOpponent', "?")
             for team in teams:
                 average = teams[team]['average']
                 rank = teams[team]['rank']

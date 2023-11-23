@@ -25,14 +25,13 @@ class Scoreboard:
         self.leagues = self.get_leagues()
         self.week = self.get_week(self.leagues[0]['leagueID'])
         self._run_it = True
-        self._main_loop_sleep = 1200
-        if datetime.datetime.now().weekday() == 6:
-            self._main_loop_sleep = 120
+        self._main_loop_sleep = 120
         self.logname = './logs/statslog.log'
         self.logger = tools.get_logger(logfilename=self.logname)
         self.leagues = self.get_leagues()
         self.fantasy_teams = self.get_team_abbrs()
         self.slack_alerts_channel = os.environ["SLACK_ALERTS_CHANNEL"]
+        self.summary_msg = ""
 
     @property
     def run_it(self):
@@ -158,6 +157,7 @@ class Scoreboard:
         return data
 
     def process_scoreboard(self, data):
+        summary_msg = f""
         schedule = data['scoreboard']['schedule']
         for matchup in schedule:
             matchup_id = matchup['id']
@@ -169,10 +169,13 @@ class Scoreboard:
                 home_team_name = self.fantasy_teams[league][str(home_team)]
                 away_team_name = self.fantasy_teams[league][str(away_team)]
                 my_loc = ""
+                my_team = ""
                 if home_team_name in ['MO', 'ZONE', 'RULE']:
+                    my_team = home_team_name
                     home_team_name += "**"
                     my_loc = "home"
                 if away_team_name in ['MO', 'ZONE', 'RULE']:
+                    my_team = away_team_name
                     away_team_name += "**"
                     my_loc = "away"
                 if home_team == data['my_team_id'] or away_team == data['my_team_id']:
@@ -199,18 +202,23 @@ class Scoreboard:
                           f"\t\t\t\t\t\r\n\n" \
                           f"{away_team_name:<6} {away_score:>6.2f} = ( proj: {away_projected_score:>7.3f} ) {away_lead}"
                     print(msg)
+                    summary_msg += f"{my_team} {home_lead} {away_lead}, "
                     if msg != "":
+                        self.push_instance.push(title="Score update",
+                                                body=f"{update_time}{AMPM_flag}:",
+                                                channel="scoreboard")
+                        time.sleep(.5)
                         self.push_instance.push(title="Score update",
                                                 body=f"{home_team_name:<6} {home_score:>6.2f} "
                                                      f"- ( proj: {home_projected_score:>7.3f} ) {home_lead}",
                                                 channel="scoreboard")
+                        time.sleep(.5)
                         self.push_instance.push(title="Score update",
                                                 body=f"{away_team_name:<6} {away_score:>6.2f} "
                                                      f"- ( proj: {away_projected_score:>7.3f} ) {away_lead}",
                                                 channel="scoreboard")
-                        self.push_instance.push(title="Score update",
-                                                body=f"----------------------------",
-                                                channel="scoreboard")
+        self.summary_msg += summary_msg
+
 
     def process_data(self, data):
         schedule = data['matchup_schedule']['schedule']
@@ -248,7 +256,14 @@ class Scoreboard:
         time.sleep(4)
 
     def single_run(self):
+        update_time = datetime.datetime.now().strftime("%#I:%M")
+        AMPM_flag = datetime.datetime.now().strftime('%p')
+        self.summary_msg = ""
         [self.process_league(league, self.week) for league in self.leagues]
+        self.push_instance.push(title="Roster change", body=f'{update_time}{AMPM_flag}: {self.summary_msg[:-2]}',
+                                channel="scoreboard")
+        if update_time == 1015 or update_time == 1255:
+            self.run_query("select * from CurrentMatchupRosters")
 
     def start(self):
         read_slack_thread = threading.Thread(target=self.slack_thread)
@@ -256,11 +271,7 @@ class Scoreboard:
         print(f"process calling function = {self.push_instance.calling_function}")
         while True:
             if self.run_it:
-                self.logger.info("In process_loop")
-                update_time = int(datetime.datetime.now().strftime("%H%M"))
-                [self.process_league(league, self.week) for league in self.leagues]
-                if update_time == 1015 or update_time == 1255:
-                    self.run_query("select * from CurrentMatchupRosters")
+                self.single_run()
                 time.sleep(self.main_loop_sleep)
             else:
                 time.sleep(5)
