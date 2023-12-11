@@ -14,6 +14,7 @@ import espn_request
 import pandas as pd
 import dataframe_image as dfi
 
+
 class Scoreboard:
     def __init__(self):
         self.SEASON = 2023
@@ -25,7 +26,8 @@ class Scoreboard:
         self.leagues = self.get_leagues()
         self.week = self.get_week(self.leagues[0]['leagueID'])
         self._run_it = True
-        self._main_loop_sleep = 120
+        self._main_loop_sleep = 240
+        self._last_report_time = datetime.datetime.now().timestamp()
         self.logname = './logs/statslog.log'
         self.logger = tools.get_logger(logfilename=self.logname)
         self.leagues = self.get_leagues()
@@ -45,6 +47,19 @@ class Scoreboard:
     def run_it(self, value: bool):
         self.logger.info(f"Set run_it to {value}")
         self._run_it = value
+
+    @property
+    def last_report_time(self):
+        return self._last_report_time
+
+    @last_report_time.getter
+    def last_report_time(self):
+        return self._last_report_time
+
+    @last_report_time.setter
+    def last_report_time(self, value):
+        self.logger.info(f"Set last_report_time to {value}")
+        self._last_report_time = value
 
     @property
     def main_loop_sleep(self):
@@ -107,7 +122,7 @@ class Scoreboard:
             slack_text = ""
             try:
                 slack_text = slack_instance.read_slack()
-                #self.logger.info(f"Slack text ({update_time}):{slack_text}.")
+                # self.logger.info(f"Slack text ({update_time}):{slack_text}.")
             except Exception as ex:
                 print(f"Exception in slack_instance.read_slack: {ex}")
                 self.logger.info(f"Exception in read_slack: {ex}")
@@ -219,7 +234,6 @@ class Scoreboard:
                                                 channel="scoreboard")
         self.summary_msg += summary_msg
 
-
     def process_data(self, data):
         schedule = data['matchup_schedule']['schedule']
         for matchup in schedule:
@@ -260,7 +274,9 @@ class Scoreboard:
         AMPM_flag = datetime.datetime.now().strftime('%p')
         self.summary_msg = ""
         [self.process_league(league, self.week) for league in self.leagues]
-        self.push_instance.push(title="Roster change", body=f'{update_time}{AMPM_flag}: {self.summary_msg[:-2]}',
+        self.push_instance.push(title="Scores", body=f'----------------------------',
+                                channel="scoreboard")
+        self.push_instance.push(title="Scores", body=f'{update_time}{AMPM_flag}: {self.summary_msg[:-2]}',
                                 channel="scoreboard")
         if update_time == 1015 or update_time == 1255:
             self.run_query("select * from CurrentMatchupRosters")
@@ -269,12 +285,15 @@ class Scoreboard:
         read_slack_thread = threading.Thread(target=self.slack_thread)
         read_slack_thread.start()
         print(f"process calling function = {self.push_instance.calling_function}")
+        self.single_run()
         while True:
             if self.run_it:
-                self.single_run()
-                time.sleep(self.main_loop_sleep)
-            else:
-                time.sleep(5)
+                now = datetime.datetime.now().timestamp()
+                print(f"S{int(self.main_loop_sleep + self.last_report_time - now)} ", end='')
+                if datetime.datetime.now().timestamp() - self.last_report_time > self.main_loop_sleep:
+                    self.single_run()
+                    self.last_report_time = datetime.datetime.now().timestamp()
+            time.sleep(5)
 
 
 def main():

@@ -43,15 +43,6 @@ def game_odds(game):
 				                     odds_quote.get('overUnder'),favorite,provider,update_time])
 	df = pd.read_csv(file_name)
 
-	# print(df)
-	# delcmd = f"delete from {table_name} where league = '{data['league_name']}'"
-	# # print(delcmd)
-	# try:
-	# 	self.DB.delete(delcmd)
-	# except Exception as ex:
-	# 	print(f"Exception in {delcmd}: {ex}")
-	# 	self.DB.reset()
-
 	try:
 		df.to_sql(table_name, fdb.conn, if_exists='append', index=False)
 	except Exception as ex:

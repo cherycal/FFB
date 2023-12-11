@@ -81,6 +81,9 @@ class Stats:
         self.threaded = True
         self.gamedays = [0, 3, 6]
         self._gameday = True if datetime.datetime.now().weekday() in self.gamedays else False
+        self.positional_team_rankings_url = \
+            f"https://fantasy.espn.com/apis/v3/games/ffl/seasons/{self.SEASON}/segments/0/" \
+            f"leagues/{self.DEFAULT_LEAGUE_ID}?view=mPositionalRatingsStats"
 
     def __repr__(self):
         return f"Stats object: Season: {self.SEASON}\n"
@@ -192,8 +195,7 @@ class Stats:
         return team_schedules
 
     def get_positional_team_rankings(self):
-        url = f"https://fantasy.espn.com/apis/v3/games/ffl/seasons/{self.SEASON}/segments/0/" \
-              f"leagues/{self.DEFAULT_LEAGUE_ID}?view=mPositionalRatingsStats"
+        url = self.positional_team_rankings_url
         positional_team_rankings = self.request_instance.make_request(url=url)
         return positional_team_rankings
 
@@ -318,6 +320,7 @@ class Stats:
             self.push_instance.push(title="Roster change", body=f'{transtype}   {name}')
 
             msg += f"{name:}\n"
+            print(f"{name:}\n")
             tm_lg = f"tm:{team_abbrev} - lg:{league}"
             fm_to = ""
             if old_injury_status != new_injury_status and old_injury_status != "None" and new_injury_status != "None":
@@ -325,15 +328,16 @@ class Stats:
             if old_lineup_slot != new_lineup_slot:
                 fm_to = f"From: {old_lineup_slot} To: {new_lineup_slot}"
             msg += f"{tm_lg}    {fm_to}\n"
-
+            print(f"{tm_lg}    {fm_to}\n")
             self.push_instance.push(title="Roster change", body=f'{tm_lg}    {fm_to}')
 
             msg += f"{'-----------------':<66}\n"
 
             self.push_instance.push(title="Roster change", body=f'{"-------------------------------"}')
 
-        if msg != "":
-            print(msg)
+
+        # if msg != "":
+        #     print(msg)
             # self.push_instance.push(title="Info", body=f'{msg}')
 
         return
@@ -386,7 +390,7 @@ class Stats:
     def diff_rosters(self, new_rosters, original_rosters):
         roster_diffs = list(diff(original_rosters, new_rosters))
         transactions = list()
-        print(f"Diffs: {roster_diffs}")
+        total_diffs = 0
         for item in roster_diffs:
             difftype = item[0]
             detail_list = list()
@@ -394,7 +398,9 @@ class Stats:
                 details = subitem[1]
                 detail_list.append(details)
             transactions.append({'type': difftype, 'details': detail_list})
-        if new_rosters and original_rosters and len(roster_diffs) < 25:
+            total_diffs = len(detail_list)
+        print(f"Number of roster differences: {total_diffs}")
+        if new_rosters and original_rosters:
             self.process_transactions(transactions)
         else:
             # self.push_instance.push(title="Info", body=f'Exception: {ex}')
@@ -514,11 +520,13 @@ class Stats:
         for team in pro_teams:
             team_names[str(team['id'])] = team['abbrev']
         positional_rankings = list()
-        if data['positional_team_rankings']['positionAgainstOpponent']['positionalRatings']:
+        if data['positional_team_rankings'].get('positionAgainstOpponent') and \
+                data['positional_team_rankings']['positionAgainstOpponent'].get('positionalRatings'):
             positional_rankings = data['positional_team_rankings']['positionAgainstOpponent']['positionalRatings']
         else:
             # self.push_instance.push(title="Info", body=f'Exception: {ex}')
-            print(f"positional_rankings not found")
+            self.logger.warning(f"positional_rankings not found using url{self.positional_team_rankings_url}")
+            print(f"positional_rankings not found using url{self.positional_team_rankings_url}")
         for position in positional_rankings:
             position_name = position_names[position]
             teams = positional_rankings[position].get('ratingsByOpponent', "?")
@@ -620,9 +628,6 @@ class Stats:
         return 0
 
     def process_league(self, league):
-        #### Save original data for comparison
-        # original_rosters = self.roster_dict()
-
         #### Get data from web
         league_id = league['leagueID']
         league_name = league['leagueAbbr']
@@ -637,10 +642,6 @@ class Stats:
 
         league_data['rosters'] = self.get_rosters(league_id),
         self.write_rosters(league_data)
-
-        #### Compare new data to saved data & push differences to Slack
-        # new_rosters = self.roster_dict()
-        # self.diff_rosters(new_rosters, original_rosters)
 
         #####
         availability = self.get_league_player_availability(f"{league_id}", 6)
@@ -659,13 +660,18 @@ class Stats:
             [self.process_league(league) for league in leagues]
             new_rosters = self.roster_dict().copy()
             self.diff_rosters(new_rosters, old_rosters)
-            if threaded:
-                countdown = threading.Thread(target=sleep_countdown, args=(sleep_interval,))
-                countdown.start()
-            print(f"Sleep for {sleep_interval} seconds")
-            time.sleep(sleep_interval)
+            current_time = int(datetime.datetime.now().strftime("%H%M"))
+            print(f"current time is {current_time}")
+            if current_time > 2200:
+                print("End of day")
+                exit(0)
+            step = 10
+            print(f"Sleep for {sleep_interval} seconds: ", end='')
+            for i in range(0, sleep_interval, step):
+                print(f"I{sleep_interval - i} ", end='')
+                time.sleep(step)
 
-    def start(self, threaded=True, sleep_interval=60):
+    def start(self, threaded=True, sleep_interval=240):
         self.threaded = threaded
         if self.threaded is True:
             # read_slack_thread = threading.Thread(target=slack_thread)
@@ -674,7 +680,6 @@ class Stats:
             scores_thread = threading.Thread(target=scoreboard_thread)
             process_league_thread.start()
             scores_thread.start()
-            time.sleep(sleep_interval)
         else:
             # scoreboard_thread()
             self.run_leagues(threaded=False, sleep_interval=sleep_interval)
@@ -682,7 +687,7 @@ class Stats:
 
 def main():
     stats = Stats()
-    stats.start(threaded=False)
+    stats.start(threaded=True)
 
 
 if __name__ == "__main__":

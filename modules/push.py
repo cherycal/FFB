@@ -55,14 +55,21 @@ def ordinal(n):
 
 def get_logger(logfilename='./logs/pushlog.log',
                logformat='\npush.py logger: %(asctime)s:%(levelname)s:'
-                         '%(funcName)s:%(lineno)d:%(message)s:%(pathname)s\n'):
+                         '%(funcName)s:%(lineno)d:%(message)s:%(pathname)s\n\n'):
     bold_seq = '\033[1m'
     colorlog_format = (
         f'{bold_seq} '
         '%(log_color)s '
         f'{logformat}'
     )
-    colorlog.basicConfig(format=colorlog_format)
+    log_colors = {
+        'DEBUG': 'cyan',
+        'INFO': 'green',
+        'WARNING': 'yellow',
+        'ERROR': 'red',
+        'CRITICAL': 'black,bg_red',
+    }
+    colorlog.basicConfig(format=colorlog_format, log_colors=log_colors)
     #logfilename = './logs/pushlog.log'
     logger_instance = logging.getLogger(__name__)
     logger_instance.setLevel(logging.DEBUG)
