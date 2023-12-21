@@ -13,6 +13,7 @@ import push
 import espn_request
 import pandas as pd
 import dataframe_image as dfi
+from git import Repo
 
 
 class Scoreboard:
@@ -25,6 +26,11 @@ class Scoreboard:
         self.push_instance = push.Push(calling_function="FBScores")
         self.leagues = self.get_leagues()
         self.week = self.get_week(self.leagues[0]['leagueID'])
+        # Playoff processing: week 16 is folded into week 15 and weeks 17 and 18 are considered week 16
+        if self.week > 15:
+            self.week -= 1
+        if self.week > 17:
+            self.week -= 1
         self._run_it = True
         self._main_loop_sleep = 2400
         self._last_report_time = datetime.datetime.now().timestamp()
@@ -34,6 +40,8 @@ class Scoreboard:
         self.fantasy_teams = self.get_team_abbrs()
         self.slack_alerts_channel = os.environ["SLACK_ALERTS_CHANNEL"]
         self.summary_msg = ""
+        self.repo_dir = "C:\\Ubuntu\\Shared\\FFB"
+        self.git_repo = Repo(self.repo_dir)
 
     @property
     def run_it(self):
@@ -143,12 +151,14 @@ class Scoreboard:
 
     def get_matchup_schedule(self, league_id):
         url = f"https://fantasy.espn.com/apis/v3/games/ffl/seasons/{self.SEASON}/segments/0/leagues/{league_id}?view=mMatchupScore"
+        self.logger.info(f"get_matchup_schedule: {url}")
         matchup_schedule = self.request_instance.make_request(url=url)
         return matchup_schedule
 
     def get_scoreboard(self, league_id):
         url = (f"https://fantasy.espn.com/apis/v3/games/ffl/seasons/"
                f"{self.SEASON}/segments/0/leagues/{league_id}?view=mScoreboard")
+        self.logger.info(f"get_scoreboard: {url}")
         scoreboard = self.request_instance.make_request(url=url)
         return scoreboard
 
@@ -172,6 +182,10 @@ class Scoreboard:
         return data
 
     def process_scoreboard(self, data):
+        update_time = f"{datetime.datetime.now().strftime('%I:%M%p')}"
+        self.logger.info(f"process_scoreboard at {update_time}")
+        # summary = dict()
+        # summary['update_time'] = update_time
         summary_msg = f""
         schedule = data['scoreboard']['schedule']
         for matchup in schedule:
@@ -217,6 +231,7 @@ class Scoreboard:
                           f"\t\t\t\t\t\r\n\n" \
                           f"{away_team_name:<6} {away_score:>6.2f} = ( proj: {away_projected_score:>7.3f} ) {away_lead}"
                     print(msg)
+                    # summary[league] = f"{my_team} {home_lead} {away_lead}"
                     summary_msg += f"{my_team} {home_lead} {away_lead}, "
                     if msg != "":
                         self.push_instance.push(title="Score update",
@@ -233,6 +248,7 @@ class Scoreboard:
                                                      f"- ( proj: {away_projected_score:>7.3f} ) {away_lead}",
                                                 channel="scoreboard")
         self.summary_msg += summary_msg
+        # print(summary)
 
     def process_data(self, data):
         schedule = data['matchup_schedule']['schedule']
@@ -270,14 +286,15 @@ class Scoreboard:
         time.sleep(4)
 
     def single_run(self):
-        update_time = datetime.datetime.now().strftime("%#I:%M")
-        AMPM_flag = datetime.datetime.now().strftime('%p')
+        update_time = f"{datetime.datetime.now().strftime('%I:%M%p')}"
+        self.logger.info(f"Scoreboard run at {update_time}")
         self.summary_msg = ""
         [self.process_league(league, self.week) for league in self.leagues]
         self.push_instance.push(title="Scores", body=f'----------------------------',
                                 channel="scoreboard")
-        self.push_instance.push(title="Scores", body=f'{update_time}{AMPM_flag}: {self.summary_msg[:-2]}',
+        self.push_instance.push(title="Scores", body=f'{update_time}: {self.summary_msg[:-2]}',
                                 channel="scoreboard")
+        self.git_push('score.txt', f'{update_time}: {self.summary_msg[:-2]}')
         current_time = int(datetime.datetime.now().strftime("%H%M"))
         if current_time == 1015 or current_time == 1255:
             self.run_query("select * from CurrentMatchupRosters")
@@ -285,6 +302,20 @@ class Scoreboard:
         if current_time > 2200:
             print("End of day")
             exit(0)
+
+    def git_push(self, filename, text):
+        pass
+        # file = f"{self.repo_dir}\\site\\mobile\\{filename}"
+        # with open(f'{file}', 'w') as f:
+        #     f.write(f"{text}")
+        #     f.close()
+        #     assert not self.git_repo.bare
+        #     git = self.git_repo.git
+        #     git.pull()
+        #     git.add(file)
+        #     git.commit('-m', 'update', file)
+        #     git.push()
+        #     self.logger.info(f"pushed {filename} to git")
 
     def start(self):
         read_slack_thread = threading.Thread(target=self.slack_thread)
