@@ -1,6 +1,8 @@
 __author__ = 'chance'
 
 import datetime
+# import inspect
+# import json
 import sys
 import threading
 
@@ -140,52 +142,57 @@ class Stats:
         player_data = self.request_instance.make_request(url=url,
                                                          output_file=f"./data/ESPNPlayerStats.json",
                                                          write=True)
-        players = player_data['players']
-        for player in players:
-            # print(player['player']['fullName'])
-            player_name = player['player']['fullName']
-            player_id = str(player['player']['id'])
-            player_team = player['player']['proTeamId']
-            player_status = player['player'].get('injuryStatus', "")
-            player_positions = player['player'].get('eligibleSlots', [''])
-            player_position = position_names.get(str(player_positions[0]), '')
-            if player_position == '':
-                player_position = position_names.get(str(player_positions[1]), '')
-            # roster_status = player.get('status', "")
-            ownership = player['player'].get('ownership', False)
-            percentChange = ""
-            percentOwned = ""
-            percentStarted = ""
-            if ownership:
-                percentChange = player['player']['ownership']['percentChange']
-                percentOwned = player['player']['ownership']['percentOwned']
-                percentStarted = player['player']['ownership']['percentStarted']
-            if player_stats.get(player_id) is None:
-                player_stats[player_id] = {}
-                player_stats[player_id]['info'] = {}
-                player_stats[player_id]['stats'] = {}
-                player_stats[player_id]['info']['id'] = player_id
-                player_stats[player_id]['info']['name'] = player_name
-                player_stats[player_id]['info']['proTeam'] = player_team
-                player_stats[player_id]['info']['injuryStatus'] = player_status
-                # player_stats[player_id]['info']['rosterStatus'] = roster_status
-                player_stats[player_id]['info']['percentChange'] = percentChange
-                player_stats[player_id]['info']['percentOwned'] = percentOwned
-                player_stats[player_id]['info']['percentStarted'] = percentStarted
-                player_stats[player_id]['info']['position'] = player_position
-                # player_stats[player_id]['proj'] = [0 for i in range(WEEKS)]
-                # player_stats[player_id]['act'] = [0 for i in range(WEEKS)]
-                player_stats[player_id]['stats']['proj'] = {}
-                player_stats[player_id]['stats']['act'] = {}
-            stats = player['player'].get('stats', [])
-            for stat in stats:
-                if stat['statSplitTypeId'] == 1 and stat['seasonId'] == year:
-                    week = str(stat['scoringPeriodId'])
-                    total = round(stat['appliedTotal'], 2)
-                    if stat['statSourceId'] == 0:
-                        player_stats[player_id]['stats']['act'][week] = total
-                    else:
-                        player_stats[player_id]['stats']['proj'][week] = total
+        try:
+            players = player_data['players']
+            for player in players:
+                # print(player['player']['fullName'])
+                player_name = player['player']['fullName']
+                player_id = str(player['player']['id'])
+                player_team = player['player']['proTeamId']
+                player_status = player['player'].get('injuryStatus', "")
+                player_positions = player['player'].get('eligibleSlots', [''])
+                player_position = position_names.get(str(player_positions[0]), '')
+                if player_position == '':
+                    player_position = position_names.get(str(player_positions[1]), '')
+                # roster_status = player.get('status', "")
+                ownership = player['player'].get('ownership', False)
+                percentChange = ""
+                percentOwned = ""
+                percentStarted = ""
+                if ownership:
+                    percentChange = player['player']['ownership']['percentChange']
+                    percentOwned = player['player']['ownership']['percentOwned']
+                    percentStarted = player['player']['ownership']['percentStarted']
+                if player_stats.get(player_id) is None:
+                    player_stats[player_id] = {}
+                    player_stats[player_id]['info'] = {}
+                    player_stats[player_id]['stats'] = {}
+                    player_stats[player_id]['info']['id'] = player_id
+                    player_stats[player_id]['info']['name'] = player_name
+                    player_stats[player_id]['info']['proTeam'] = player_team
+                    player_stats[player_id]['info']['injuryStatus'] = player_status
+                    # player_stats[player_id]['info']['rosterStatus'] = roster_status
+                    player_stats[player_id]['info']['percentChange'] = percentChange
+                    player_stats[player_id]['info']['percentOwned'] = percentOwned
+                    player_stats[player_id]['info']['percentStarted'] = percentStarted
+                    player_stats[player_id]['info']['position'] = player_position
+                    # player_stats[player_id]['proj'] = [0 for i in range(WEEKS)]
+                    # player_stats[player_id]['act'] = [0 for i in range(WEEKS)]
+                    player_stats[player_id]['stats']['proj'] = {}
+                    player_stats[player_id]['stats']['act'] = {}
+
+                stats = player['player'].get('stats', [])
+                for stat in stats:
+                    if stat['statSplitTypeId'] == 1 and stat['seasonId'] == year:
+                        week = str(stat['scoringPeriodId'])
+                        total = round(stat['appliedTotal'], 2)
+                        if stat['statSourceId'] == 0:
+                            player_stats[player_id]['stats']['act'][week] = total
+                        else:
+                            player_stats[player_id]['stats']['proj'][week] = total
+        except Exception as ex:
+            self.logger.error(f"error in get_player_stats: {ex}")
+            self.push_instance.push(title="Error", body=f"error in get_player_stats: {ex}")
 
         return player_stats
 
@@ -335,10 +342,9 @@ class Stats:
 
             self.push_instance.push(title="Roster change", body=f'{"-------------------------------"}')
 
-
         # if msg != "":
         #     print(msg)
-            # self.push_instance.push(title="Info", body=f'{msg}')
+        # self.push_instance.push(title="Info", body=f'{msg}')
 
         return
 
@@ -427,8 +433,7 @@ class Stats:
 
         delcmd = f"delete from {table_name} where Year = {data['year']}"
         self.DB.delete(delcmd)
-
-        df.to_sql(table_name, self.DB.conn, if_exists='append', index=False)
+        self.DB.df_to_sql(df, table_name, register=False)
 
         return 0
 
@@ -687,7 +692,7 @@ class Stats:
 
 def main():
     stats = Stats()
-    stats.start(threaded=True)
+    stats.start(threaded=False)
 
 
 if __name__ == "__main__":

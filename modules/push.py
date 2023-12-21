@@ -54,8 +54,9 @@ def ordinal(n):
 
 
 def get_logger(logfilename='./logs/pushlog.log',
-               logformat='\npush.py logger: %(asctime)s:%(levelname)s:'
-                         '%(funcName)s:%(lineno)d:%(message)s:%(pathname)s\n\n'):
+               logformat='\npush.py logger: time=%(asctime)s level=%(levelname)s '
+                         'calling_function=%(funcName)s lineno=%(lineno)d\nmsg=%(message)s\n'
+                         'calling process path=%(pathname)s\n\n'):
     bold_seq = '\033[1m'
     colorlog_format = (
         f'{bold_seq} '
@@ -145,8 +146,13 @@ class Process(object):
             self.logger_instance = logger_instance
         self._calling_function = calling_function
         if calling_function == "General":
-            self.logger_instance.info(f"Register a calling function when instantiating a Process")
-            exit(0)
+            calling_script = str(inspect.stack()[2].filename).split(sep='\\')[-1]
+            self._calling_function = calling_script
+            self.logger_instance.warning(f"A calling_function was not provided\n\t"
+                                         f"Best practice is to set a calling function with a name "
+                                         f"when instantiating a Push process\n\t"
+                                         f"Using the default calling script name {calling_script} instead")
+            time.sleep(2)
 
     @property
     def calling_function(self):

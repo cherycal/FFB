@@ -44,7 +44,7 @@ def game_odds(game):
 	df = pd.read_csv(file_name)
 
 	try:
-		df.to_sql(table_name, fdb.conn, if_exists='append', index=False)
+		fdb.df_to_sql(df, table_name, register=True)
 	except Exception as ex:
 		print(f"Exception in df.to_sql: {ex}")
 		fdb.reset()

@@ -8,6 +8,8 @@ import pandas as pd
 
 import push
 import tools
+import datetime
+
 
 def print_calling_function(command='command left blank'):
     print(command)
@@ -20,13 +22,15 @@ def print_calling_function(command='command left blank'):
     #       ", " + str(inspect.stack()[-1].lineno))
     return
 
+
 def print_stack():
     stack = list()
     inspect_stack = inspect.stack().copy()
     for item in inspect_stack:
         if item.function != 'execfile':
-            stack.insert(0,f"{item.filename}:{item.lineno}:{item.function}")
+            stack.insert(0, f"{item.filename}:{item.lineno}:{item.function}")
     return stack
+
 
 class DB:
 
@@ -54,7 +58,20 @@ class DB:
     def __str__(self):
         return f"{self.db}"
 
-    def query(self, cmd, verbose=0):
+    def register(self, table_name):
+        update_time = datetime.datetime.now().strftime("%Y%m%d%H%M%S")
+        inspect_stack_length = len(inspect.stack())
+        for i in range(inspect_stack_length):
+            print(f"Inspect stack file: {inspect.stack()[i].filename}\n\n")
+            self.insert_many("ProcessRegister",
+                             [(update_time, update_time, table_name,
+                               str(inspect.stack()[i].function),
+                               'df.to_sql', inspect.stack()[i].filename,
+                               inspect.stack()[i].lineno)])
+
+    def query(self, cmd, verbose=0, register=False):
+        if register:
+            self.register(cmd)
         if verbose:
             print_calling_function(cmd)
         self.cursor.execute(cmd)
@@ -67,19 +84,23 @@ class DB:
             rows.append(dict(zip(columns, row)))
         return rows
 
-    def select(self, query, verbose=0):
+    def select(self, query, verbose=0, register=False):
+        if register:
+            self.register(query)
         if verbose:
             print_calling_function(query)
         self.cursor.execute(query)
         self.conn.commit()
         return self.cursor.fetchall()
 
-    def select_plus(self, query, verbose=0):
+    def select_plus(self, query, verbose=0, register=False):
         # returns:
         # - 'column_names': a list of column names
         # - 'rows': rows in query, ordered by columns as described in 'column_names'
         # - 'dicts': a list of dictionaries, each item in list is a
         #    dict representing a row in the query as key/value pairs ( column_name / row value )
+        if register:
+            self.register(query)
         ret_dict = dict()
         if verbose:
             print_calling_function(query)
@@ -97,7 +118,9 @@ class DB:
         ret_dict['dicts'] = dicts
         return ret_dict
 
-    def select_w_cols(self, query, verbose=0):
+    def select_w_cols(self, query, verbose=0, register=False):
+        if register:
+            self.register(query)
         if verbose:
             print_calling_function(query)
         self.cursor.execute(query)
@@ -108,14 +131,23 @@ class DB:
             rows.append(row)
         return col_headers, rows
 
-    def insert(self, command, verbose=0):
+
+    def df_to_sql(self, df, table_name, register=False):
+        if register:
+            self.register(table_name)
+        df.to_sql(table_name, self.conn, if_exists='append', index=False)
+
+    def insert(self, command, register = False, verbose=0):
+        if register:
+            self.register(command)
         self.cmd(command, verbose)
 
-    def insert_many(self, table_name, in_list):
-        #
+    def insert_many(self, table_name, in_list, register = False):
         # "in_list" is a list of tuples
         # Ex: db.insert_many( Animals, [ (1,'a','aardvark'),(2,'b','bear'),(3,'c','cat') ] )
         # each tuple must *precisely* match the columns in a table
+        if register:
+            self.register(table_name)
         table = table_name
         # print_calling_function()
         # print("in_list[0]:")
@@ -134,13 +166,15 @@ class DB:
             print(str(ex))
         return
 
-    def insert_list(self, table, in_list, verbose=0):
+    def insert_list(self, table, in_list, verbose=0, register=False):
         # inserts one row given a list of values that *precisely* matches the columns in a table
         # print_calling_function()
         # print(table)
         # print(in_list)
 
         try:
+            if register:
+                self.register(table)
             cursor = self.conn.execute(f'select * from {table}')
             out_list = list(map(lambda x: x[0], cursor.description))
             cols = self.string_from_list(out_list)
@@ -182,13 +216,19 @@ class DB:
         self.cursor.execute(command, params)
         self.conn.commit()
 
-    def delete(self, command, verbose=0):
+    def delete(self, command, verbose=0, register=False):
+        if register:
+            self.register(command)
         self.cmd(command, verbose)
 
-    def update(self, command, verbose=0):
+    def update(self, command, verbose=0, register=False):
+        if register:
+            self.register(command)
         self.cmd(command, verbose)
 
-    def cmd(self, command, verbose=0):
+    def cmd(self, command, verbose=0, register=False):
+        if register:
+            self.register(command)
         if verbose:
             print_calling_function(command)
         tries = 0

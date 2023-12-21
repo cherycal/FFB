@@ -26,7 +26,7 @@ class Scoreboard:
         self.leagues = self.get_leagues()
         self.week = self.get_week(self.leagues[0]['leagueID'])
         self._run_it = True
-        self._main_loop_sleep = 240
+        self._main_loop_sleep = 2400
         self._last_report_time = datetime.datetime.now().timestamp()
         self.logname = './logs/statslog.log'
         self.logger = tools.get_logger(logfilename=self.logname)
@@ -278,8 +278,13 @@ class Scoreboard:
                                 channel="scoreboard")
         self.push_instance.push(title="Scores", body=f'{update_time}{AMPM_flag}: {self.summary_msg[:-2]}',
                                 channel="scoreboard")
-        if update_time == 1015 or update_time == 1255:
+        current_time = int(datetime.datetime.now().strftime("%H%M"))
+        if current_time == 1015 or current_time == 1255:
             self.run_query("select * from CurrentMatchupRosters")
+        print(f"current time is {current_time}")
+        if current_time > 2200:
+            print("End of day")
+            exit(0)
 
     def start(self):
         read_slack_thread = threading.Thread(target=self.slack_thread)

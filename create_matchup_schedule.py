@@ -18,7 +18,7 @@ request_instance = espn_request.Request()
 request_instance.year = SEASON
 print(request_instance.year)
 REFRESH = True
-push_instance = push.Push()
+push_instance = push.Push(calling_function="create_matchup_schedule")
 
 def get_leagues():
     return fdb.query(f"select leagueId, leagueAbbr, Year from Leagues where Year = {SEASON}")
@@ -58,10 +58,10 @@ def process_data(data):
             csv_writer.writerow([league_id, league, week, home_team, away_team])
 
     df = pd.read_csv(file_name)
-    # print(df)
+    print(df)
     delcmd = f"delete from {table_name} where league = '{league}'"
-    fdb.delete(delcmd)
-    df.to_sql(table_name, fdb.conn, if_exists='append', index=False)
+    fdb.delete(delcmd, register=True)
+    fdb.df_to_sql(df, table_name)
 
 
 def process_league(league):
