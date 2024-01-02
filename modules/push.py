@@ -89,8 +89,9 @@ def print_calling_function():
     print("#############################")
     # print(str(inspect.stack()[-2].filename) + ", " + str(inspect.stack()[-2].function) +
     #      ", " + str(inspect.stack()[-2].lineno))
-    print(str(inspect.stack()[1].filename) + ", " + str(inspect.stack()[1].function) +
-          ", " + str(inspect.stack()[1].lineno))
+    # print(str(inspect.stack()[1].filename) + ", " + str(inspect.stack()[1].function) +
+    #       ", " + str(inspect.stack()[1].lineno))
+    print(inspect.stack())
     # print(str(inspect.stack()[-1].filename) + ", " + str(inspect.stack()[-1].function) +
     #      ", " + str(inspect.stack()[-1].lineno))
     print("#############################")
@@ -205,14 +206,14 @@ class Process(object):
         cmd = f"update Slack set " \
               f"TimeStamp = {timestamp} " \
               f"where ProcessName = '{self.calling_function}'"
-        self.logger_instance.info(cmd)
+        # self.logger_instance.info(cmd)
         self.execute(cmd)
-        self.logger_instance.info(f"Successfully set Time Stamp to {timestamp} for {self.calling_function}")
+        # self.logger_instance.info(f"Successfully set Time Stamp to {timestamp} for {self.calling_function}")
         return
 
     def get_slack_timestamp(self):
         cmd = f"select TimeStamp from Slack where ProcessName = '{self.calling_function}'"
-        # self.logger_instance.info(cmd)
+        # self.logger_instance.warning(cmd)
         d = self.select(cmd)
         timestamp = d[0][0]
         return timestamp
@@ -260,6 +261,8 @@ class Push(object):
             "scoreboard": slack_scoreboard_channel
         }
         self.calling_function = calling_function
+        # print_calling_function()
+        # self.logger_instance.warning(f"Calling function: {self.calling_function}")
         self.process_instance = Process(calling_function=self.calling_function)
         self.slack_api_token = os.environ["SLACK_BOT_TOKEN"]
         self.slack_alerts_channel = os.environ["SLACK_ALERTS_CHANNEL"]
@@ -368,9 +371,9 @@ class Push(object):
             except Exception as ex:
                 print(f"Exception in push.send_message: {ex}")
         if self.calling_function == "GameData":
-            time.sleep(10)
-        else:
             time.sleep(2)
+        else:
+            time.sleep(.1)
         return
 
     def login_sms_server(self):
@@ -463,7 +466,7 @@ class Push(object):
                         # slack_process_text(text)
                         return_text = text
                         self.process_instance.set_slack_timestamp(ts)
-                        time.sleep(.25)
+                        time.sleep(.05)
                     except Exception as ex:
                         self.push(body=f"Error in push_instance, Error: {str(ex)}")
                 else:
