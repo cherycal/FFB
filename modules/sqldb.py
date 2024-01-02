@@ -9,6 +9,8 @@ import pandas as pd
 import push
 import tools
 import datetime
+import dataframe_image as dfi
+from git import Repo
 
 
 def print_calling_function(command='command left blank'):
@@ -51,6 +53,8 @@ class DB:
         self.cursor = self.conn.cursor()
         self.msg = ""
         self.push_instance = push.Push(calling_function="SQLDB")
+        self.repo_dir = "C:\\Ubuntu\\Shared\\FFB"
+        self.git_repo = Repo(self.repo_dir)
 
     def __repr__(self):
         return f"{self.db}"
@@ -131,18 +135,17 @@ class DB:
             rows.append(row)
         return col_headers, rows
 
-
     def df_to_sql(self, df, table_name, register=False):
         if register:
             self.register(table_name)
         df.to_sql(table_name, self.conn, if_exists='append', index=False)
 
-    def insert(self, command, register = False, verbose=0):
+    def insert(self, command, register=False, verbose=0):
         if register:
             self.register(command)
         self.cmd(command, verbose)
 
-    def insert_many(self, table_name, in_list, register = False):
+    def insert_many(self, table_name, in_list, register=False):
         # "in_list" is a list of tuples
         # Ex: db.insert_many( Animals, [ (1,'a','aardvark'),(2,'b','bear'),(3,'c','cat') ] )
         # each tuple must *precisely* match the columns in a table
@@ -319,3 +322,73 @@ class DB:
             print(f'Created: {filename}')
         else:
             print(f'Table/view {tblname} does not exist. File {filename} not created')
+
+    def table_to_html(self, tblname, publish=True):
+        lol = []
+        filename = f'./site/{tblname}.html'
+        if self.table_or_view(tblname):
+            detail_history = self.select_plus(f'SELECT * FROM {tblname}')
+            for row in detail_history['rows']:
+                lol.append(row)
+            detail_df = pd.DataFrame(lol, columns=detail_history['column_names'])
+            update_time = datetime.datetime.now().strftime("%Y%m%d %H:%M:%S")
+            header_str = (f"<header style=\"font-weight: bold;"
+                          f"font-size:large;\">{filename} published at {update_time}</header><br><br>")
+            html_body = detail_df.to_html(index=False)
+            html_body = html_body.replace("None", "")
+            body_str = (f"<body style=\"background-color: rgb(44, 44, 35); color: rgb(161, 159, 159);"
+                        f"font-family: Courier, monospace; "
+                        f"font-size:small;font-weight: 100; "
+                        f"display: inline-block;\">")
+            footer_str = f"</body>"
+            with open(f'{filename}', 'w') as f:
+                f.write(header_str)
+                f.write(body_str)
+                f.write(html_body)
+                f.write(footer_str)
+                f.close()
+            print(f'Created: {filename}')
+            if publish:
+                assert not self.git_repo.bare
+                git = self.git_repo.git
+                git.pull()
+                git.add(filename)
+                git.commit('-m', 'update', filename)
+                git.push()
+                print(f"pushed {filename} to git")
+        else:
+            print(f'Table/view {tblname} does not exist. File {filename} not created')
+
+    def git_push(self, filename, text):
+        with open(f'{filename}', 'w') as f:
+            f.write(f"{text}")
+            f.close()
+            assert not self.git_repo.bare
+            git = self.git_repo.git
+            git.pull()
+            git.add(filename)
+            git.commit('-m', 'update', filename)
+            git.push()
+            print(f"pushed {filename} to git")
+
+    def run_query(self, query, msg="query"):
+        lol = []
+        index = list()
+
+        print("Query: " + query)
+        try:
+            col_headers, rows = self.select_w_cols(query)
+            for row in rows:
+                lol.append(row)
+                index.append("")
+
+            df = pd.DataFrame(lol, columns=col_headers, index=index)
+            # print(df)
+            img = f"./{msg}.png"
+            print(f"Upload file: {img}")
+            dfi.export(df, img, table_conversion="matplotlib")
+            # self.push_instance.tweet_media(img, msg, True)
+            # self.push_instance.push_attachment(img, msg)
+            push.push_attachment(img, msg)
+        except Exception as ex:
+            print(str(ex))
