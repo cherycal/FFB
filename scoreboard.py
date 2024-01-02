@@ -15,9 +15,11 @@ import pandas as pd
 import dataframe_image as dfi
 from git import Repo
 
+def html_template(msg):
+    return f"<!DOCTYPE html><html><head><title>FRANTASYLAND</title></head><body><h2>{msg}</h2><p></p></body></html>"
 
 class Scoreboard:
-    def __init__(self):
+    def __init__(self, main_loop_sleep=240):
         self.SEASON = 2023
         self.STATS_YEAR = 2023
         self.fdb = sqldb.DB('Football.db')
@@ -27,12 +29,12 @@ class Scoreboard:
         self.leagues = self.get_leagues()
         self.week = self.get_week(self.leagues[0]['leagueID'])
         # Playoff processing: week 16 is folded into week 15 and weeks 17 and 18 are considered week 16
-        if self.week > 15:
+        if self.week >= 16:
             self.week -= 1
-        if self.week > 17:
+        if self.week >= 17:
             self.week -= 1
         self._run_it = True
-        self._main_loop_sleep = 2400
+        self._main_loop_sleep = main_loop_sleep
         self._last_report_time = datetime.datetime.now().timestamp()
         self.logname = './logs/statslog.log'
         self.logger = tools.get_logger(logfilename=self.logname)
@@ -40,6 +42,7 @@ class Scoreboard:
         self.fantasy_teams = self.get_team_abbrs()
         self.slack_alerts_channel = os.environ["SLACK_ALERTS_CHANNEL"]
         self.summary_msg = ""
+        self.page_msg = ""
         self.repo_dir = "C:\\Ubuntu\\Shared\\FFB"
         self.git_repo = Repo(self.repo_dir)
 
@@ -191,6 +194,7 @@ class Scoreboard:
         for matchup in schedule:
             matchup_id = matchup['id']
             matchup_week = int((matchup_id - 1) / 5) + 1
+            # print(f"data_week: {data['week']} - matchup_week: {matchup_week}")
             if data['week'] == matchup_week:
                 league = data['league_name']
                 home_team = matchup['home']['teamId']
@@ -247,7 +251,7 @@ class Scoreboard:
                                                 body=f"{away_team_name:<6} {away_score:>6.2f} "
                                                      f"- ( proj: {away_projected_score:>7.3f} ) {away_lead}",
                                                 channel="scoreboard")
-        self.summary_msg += summary_msg
+        self.summary_msg += f"{summary_msg}\n"
         # print(summary)
 
     def process_data(self, data):
@@ -294,28 +298,28 @@ class Scoreboard:
                                 channel="scoreboard")
         self.push_instance.push(title="Scores", body=f'{update_time}: {self.summary_msg[:-2]}',
                                 channel="scoreboard")
-        self.git_push('score.txt', f'{update_time}: {self.summary_msg[:-2]}')
+        self.page_msg += f"{update_time}: {self.summary_msg[:-3]}<br>"
+        print(self.page_msg)
+        self.git_push('./site/index.html', html_template(self.page_msg))
         current_time = int(datetime.datetime.now().strftime("%H%M"))
         if current_time == 1015 or current_time == 1255:
             self.run_query("select * from CurrentMatchupRosters")
         print(f"current time is {current_time}")
-        if current_time > 2200:
+        if current_time > 2220:
             print("End of day")
             exit(0)
 
     def git_push(self, filename, text):
-        pass
-        # file = f"{self.repo_dir}\\site\\mobile\\{filename}"
-        # with open(f'{file}', 'w') as f:
-        #     f.write(f"{text}")
-        #     f.close()
-        #     assert not self.git_repo.bare
-        #     git = self.git_repo.git
-        #     git.pull()
-        #     git.add(file)
-        #     git.commit('-m', 'update', file)
-        #     git.push()
-        #     self.logger.info(f"pushed {filename} to git")
+        with open(f'{filename}', 'w') as f:
+            f.write(f"{text}")
+            f.close()
+            assert not self.git_repo.bare
+            git = self.git_repo.git
+            git.pull()
+            git.add(filename)
+            git.commit('-m', 'update', filename)
+            git.push()
+            self.logger.info(f"pushed {filename} to git")
 
     def start(self):
         read_slack_thread = threading.Thread(target=self.slack_thread)
