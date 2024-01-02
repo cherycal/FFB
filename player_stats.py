@@ -45,28 +45,6 @@ def sleep_countdown(sleep_interval):
         sleep_interval -= 1
 
 
-def scoreboard_thread():
-    scores = Scoreboard()
-    scores.start()
-
-
-def process_slack_text(slack_text):
-    print(slack_text)
-    pass
-
-
-def slack_thread():
-    slack_instance = push.Push()
-    while True:
-        update_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-        slack_text = slack_instance.read_slack()
-        if slack_text != "":
-            push.logger.info(f"Slack text ({update_time}):{slack_text}.")
-            slack_instance.push(f"Received slack request: {slack_text}")
-            process_slack_text(slack_text)
-        time.sleep(5)
-
-
 class Stats:
 
     def __init__(self, season=2023):
@@ -266,6 +244,32 @@ class Stats:
             key = str(row['key'])
             _roster_dict[key] = row
         return _roster_dict
+
+    def slack_thread(self):
+        slack_instance = push.Push(calling_function="FBStatsSlack")
+        while True:
+            update_time = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
+            # slack_instance.logger_instance.warning(f"Slack_thread read_slack.")
+            slack_text = slack_instance.read_slack()
+            if slack_text != "":
+                slack_instance.logger_instance.info(f"Slack text ({update_time}):{slack_text}.")
+                slack_instance.push(f"Received slack request: {slack_text}")
+                self.process_slack_text(slack_text)
+            time.sleep(5)
+
+    def process_slack_text(self, text):
+        print(f"process_slack_text: {text}")
+        if text.upper()[0:2] == "T:":
+            table = text[2:]
+            print(f"{text[2:]}")
+            self.push_instance.push(title="Table to web", body=f'Table to web: {table}')
+            try:
+                fdb = sqldb.DB('Football.db')
+                fdb.table_to_html(table)
+                fdb.close()
+            except Exception as ex:
+                self.push_instance.push(title="Table to web error", body=f'Table to web error: {ex}')
+                self.logger.error(f"Exception in process_slack_text: {ex}")
 
     def process_transactions(self, transactions):
         msg = ""
@@ -632,6 +636,13 @@ class Stats:
 
         return 0
 
+    def scoreboard_thread(self):
+        if self.gameday:
+            scores = Scoreboard(main_loop_sleep=600)
+        else:
+            scores = Scoreboard(main_loop_sleep=7200)
+        scores.start()
+
     def process_league(self, league):
         #### Get data from web
         league_id = league['leagueID']
@@ -658,7 +669,7 @@ class Stats:
     def run_leagues(self, threaded=True, sleep_interval=120):
         self.DB = sqldb.DB('Football.db')
         leagues = self.get_leagues()
-        print(f"run_leagues threaded indicator is set to {threaded}")
+        print(f"run_leagues run scores thread is set to {threaded}")
         print(f"run_leagues sleep interval is set to {sleep_interval}")
         while True:
             old_rosters = self.roster_dict().copy()
@@ -679,15 +690,15 @@ class Stats:
     def start(self, threaded=True, sleep_interval=240):
         self.threaded = threaded
         if self.threaded is True:
-            # read_slack_thread = threading.Thread(target=slack_thread)
-            # read_slack_thread.start()
             process_league_thread = threading.Thread(target=self.run_leagues, kwargs={'sleep_interval': sleep_interval})
-            scores_thread = threading.Thread(target=scoreboard_thread)
+            scores_thread = threading.Thread(target=self.scoreboard_thread)
+            read_slack_thread = threading.Thread(target=self.slack_thread)
             process_league_thread.start()
             scores_thread.start()
+            read_slack_thread.start()
         else:
-            # scoreboard_thread()
             self.run_leagues(threaded=False, sleep_interval=sleep_interval)
+
 
 
 def main():
