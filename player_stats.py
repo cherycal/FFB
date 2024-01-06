@@ -673,7 +673,11 @@ class Stats:
         print(f"run_leagues sleep interval is set to {sleep_interval}")
         while True:
             old_rosters = self.roster_dict().copy()
-            [self.process_league(league) for league in leagues]
+            try:
+                [self.process_league(league) for league in leagues]
+            except Exception as ex:
+                self.logger.error(f"ERROR in run_leagues: {ex}")
+                self.push_instance.push(f"ERROR in run_leagues: {ex}")
             new_rosters = self.roster_dict().copy()
             self.diff_rosters(new_rosters, old_rosters)
             current_time = int(datetime.datetime.now().strftime("%H%M"))
