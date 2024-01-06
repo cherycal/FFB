@@ -296,7 +296,7 @@ class Push(object):
             use_channel = self.slack_channel_types[channel]
         SUPPRESS_FLAG = False
         if title is None:
-            title = "No title provided"
+            title = body[0:20]
         # To make this work, in Slack, go to channel, channel details, integrations tab, Add App "Alerts Baseball"
         if not SUPPRESS_FLAG:
             message = f"{body}\r\n\r\n"
